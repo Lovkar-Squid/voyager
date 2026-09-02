@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/voyager",
+  "researchLevel": 4,
+  "sortOrder": 1,
+  "subtitle": "com.voyager.research.technology.void_insurance.subtitle",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:voyager",
+      "level": 1
+    }
+  ],
+  "costs": [
+    {
+      "count": 32,
+      "item": "minecraft:end_stone"
+    },
+    {
+      "count": 4,
+      "item": "minecraft:ender_pearl"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/void_insurance",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:shield"
+}

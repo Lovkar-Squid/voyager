@@ -1,0 +1,56 @@
+{
+  "rocket_ignition": {
+    "subtitle": "subtitles.voyager.rocket_ignition",
+    "sounds": [
+      {
+        "name": "voyager:rocket_ignition",
+        "stream": false
+      }
+    ]
+  },
+  "rocket_launch": {
+    "subtitle": "subtitles.voyager.rocket_launch",
+    "sounds": [
+      {
+        "name": "voyager:rocket_launch",
+        "stream": false
+      }
+    ]
+  },
+  "rocket_landing": {
+    "subtitle": "subtitles.voyager.rocket_landing",
+    "sounds": [
+      {
+        "name": "voyager:rocket_landing",
+        "stream": false
+      }
+    ]
+  },
+  "rocket_touchdown": {
+    "subtitle": "subtitles.voyager.rocket_touchdown",
+    "sounds": [
+      {
+        "name": "voyager:rocket_touchdown",
+        "stream": false
+      }
+    ]
+  },
+  "gate_charge": {
+    "subtitle": "subtitles.voyager.gate_charge",
+    "sounds": [
+      {
+        "name": "voyager:gate_charge",
+        "stream": false
+      }
+    ]
+  },
+  "gate_warp": {
+    "subtitle": "subtitles.voyager.gate_warp",
+    "sounds": [
+      {
+        "name": "voyager:gate_warp",
+        "stream": false
+      }
+    ]
+  }
+}

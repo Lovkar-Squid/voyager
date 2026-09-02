@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/starlight_navigation",
+  "researchLevel": 5,
+  "sortOrder": 1,
+  "subtitle": "com.voyager.research.technology.rapid_refit.subtitle",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:voyager",
+      "level": 4
+    }
+  ],
+  "costs": [
+    {
+      "count": 16,
+      "item": "minecraft:purpur_block"
+    },
+    {
+      "count": 4,
+      "item": "minecraft:iron_block"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/rapid_refit",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:firework_rocket"
+}

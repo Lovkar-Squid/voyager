@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/voyager",
+  "researchLevel": 4,
+  "sortOrder": 4,
+  "subtitle": "com.voyager.research.technology.shulker_whisperer.subtitle",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:voyager",
+      "level": 3
+    }
+  ],
+  "costs": [
+    {
+      "count": 2,
+      "item": "minecraft:shulker_shell"
+    },
+    {
+      "count": 32,
+      "item": "minecraft:chorus_fruit"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/shulker_whisperer",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:shulker_shell"
+}

@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/shulker_whisperer",
+  "researchLevel": 5,
+  "sortOrder": 1,
+  "subtitle": "com.voyager.research.technology.dragon_hunt.subtitle",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:voyager",
+      "level": 5
+    }
+  ],
+  "costs": [
+    {
+      "count": 4,
+      "item": "minecraft:dragon_breath"
+    },
+    {
+      "count": 16,
+      "item": "minecraft:end_stone_bricks"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/dragon_hunt",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:dragon_head"
+}

@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/voyager",
+  "researchLevel": 4,
+  "sortOrder": 2,
+  "subtitle": "com.voyager.research.technology.starlight_navigation.subtitle",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:voyager",
+      "level": 2
+    }
+  ],
+  "costs": [
+    {
+      "count": 4,
+      "item": "minecraft:end_rod"
+    },
+    {
+      "count": 8,
+      "item": "minecraft:ender_eye"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/starlight_navigation",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:ender_eye"
+}

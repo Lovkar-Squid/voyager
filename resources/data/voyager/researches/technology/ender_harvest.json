@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/voyager",
+  "researchLevel": 4,
+  "sortOrder": 3,
+  "subtitle": "com.voyager.research.technology.ender_harvest.subtitle",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:voyager",
+      "level": 2
+    }
+  ],
+  "costs": [
+    {
+      "count": 32,
+      "item": "minecraft:chorus_fruit"
+    },
+    {
+      "count": 4,
+      "item": "minecraft:ender_pearl"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/ender_harvest",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:ender_pearl"
+}

@@ -1,0 +1,48 @@
+{
+  "type": "recipe",
+  "crafter": "voyager_custom",
+  "inputs": [
+    {
+      "count": 64,
+      "id": "minecraft:cobblestone"
+    },
+    {
+      "count": 4,
+      "id": "minecraft:ender_pearl"
+    },
+    {
+      "count": 16,
+      "id": "minecraft:torch"
+    }
+  ],
+  "intermediate": "minecraft:air",
+  "loot-table": "voyager:recipes/voyager/trip3",
+  "additional-output": [
+    {
+      "id": "minecraft:chorus_flower"
+    },
+    {
+      "id": "minecraft:chorus_fruit"
+    },
+    {
+      "id": "minecraft:end_rod"
+    },
+    {
+      "id": "minecraft:end_stone"
+    },
+    {
+      "id": "minecraft:end_stone_bricks"
+    },
+    {
+      "id": "minecraft:ender_pearl"
+    },
+    {
+      "id": "minecraft:purpur_block"
+    },
+    {
+      "id": "minecraft:shulker_shell"
+    }
+  ],
+  "min-building-level": 3,
+  "max-building-level": 3
+}

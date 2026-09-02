@@ -1,0 +1,16 @@
+{
+  "icon": "voyager.png",
+  "name": "Voyager",
+  "authors": [
+    "Lovkar",
+    "Claude"
+  ],
+  "desc": "Expedition buildings for the Voyager profession: a Launchpad with a rocket, or an End Gate. Both are the same building - pick the look you like. Works with every colony style.",
+  "mods": [
+    "structurize",
+    "minecolonies",
+    "voyager"
+  ],
+  "version": "1",
+  "pack-format": "1"
+}

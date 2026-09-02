@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/voyager",
+  "researchLevel": 4,
+  "sortOrder": 5,
+  "subtitle": "com.voyager.research.technology.long_range_comms.subtitle",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:voyager",
+      "level": 1
+    }
+  ],
+  "costs": [
+    {
+      "count": 4,
+      "item": "minecraft:end_rod"
+    },
+    {
+      "count": 32,
+      "item": "minecraft:redstone"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/long_range_comms",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:lightning_rod"
+}
