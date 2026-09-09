@@ -36,6 +36,7 @@ import me.lovkar.voyager.Voyager;
 import me.lovkar.voyager.colony.BuildingVoyager;
 import me.lovkar.voyager.colony.JobVoyager;
 import me.lovkar.voyager.colony.VoyagerModules;
+import me.lovkar.voyager.colony.ObservatoryResearch;
 import me.lovkar.voyager.colony.VoyagerResearch;
 import me.lovkar.voyager.fx.Effects;
 import net.minecraft.core.BlockPos;
@@ -405,10 +406,15 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 finds.add(token);
                 Voyager.LOGGER.info("[Voyager] {} has the dragon on the itinerary this time", name());
             }
+            deepField(finds);
             job.addFinds(finds);
         }
         final int findCount = Math.max(1, job.getFinds().size());
-        final double refit = VoyagerResearch.strength(job.getColony(), VoyagerResearch.RAPID_REFIT);
+        // Rapid Refit is bought at the University, Star Charts at the Observatory, and a colony
+        // that has both gets both - a crossing is shorter for a better ship and for a better map.
+        final double refit = Math.min(0.8,
+                VoyagerResearch.strength(job.getColony(), VoyagerResearch.RAPID_REFIT)
+                        + ObservatoryResearch.strength(job.getColony(), ObservatoryResearch.STAR_CHARTS));
         final int ticksAway = (int) Math.max(TICKS_PER_FIND, findCount * TICKS_PER_FIND * (1.0 - refit));
         worker.getCitizenData().setJobStatus(JobStatus.WORKING);
         lastNote = "";
@@ -443,6 +449,30 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
     private void travel(final BlockPos target, final int ticks) {
         worker.getCitizenData().getColony().getTravellingManager().startTravellingTo(worker.getCitizenData(), target, ticks);
         worker.remove(Entity.RemovalReason.DISCARDED);
+    }
+
+    /**
+     * Deep Field: the Observatory spent its nights working out where to point, and the expedition
+     * comes home with one thing more than the roll gave it. A second copy of something already on
+     * the itinerary, never a second fight - the astronomer found a place, not a monster.
+     */
+    private void deepField(final List<ItemStack> finds) {
+        if (!ObservatoryResearch.has(job.getColony(), ObservatoryResearch.DEEP_FIELD)) {
+            return;
+        }
+        final List<ItemStack> quiet = new ArrayList<>();
+        for (final ItemStack find : finds) {
+            if (!(find.getItem() instanceof ItemAdventureToken) && !find.isEmpty()) {
+                quiet.add(find);
+            }
+        }
+        if (quiet.isEmpty()) {
+            return;
+        }
+        final ItemStack extra = quiet.get(worker.getRandom().nextInt(quiet.size())).copy();
+        finds.add(extra);
+        Voyager.LOGGER.info("[Voyager] deep field: the charts add {}x {} to {}'s itinerary",
+                extra.getCount(), extra.getHoverName().getString(), name());
     }
 
     /** Dragon Hunt researched, a level 5 Departure Point, and a one-in-ten roll. */

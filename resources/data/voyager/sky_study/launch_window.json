@@ -1,0 +1,24 @@
+{
+  "branch": "almanac",
+  "sortOrder": 4,
+  "tier": 5,
+  "nights": 10,
+  "costs": [
+    {
+      "item": "minecraft:end_rod",
+      "count": 8
+    },
+    {
+      "item": "minecraft:ender_eye",
+      "count": 8
+    },
+    {
+      "item": "minecraft:clock",
+      "count": 2
+    }
+  ],
+  "effect": "launch_window",
+  "level": 1.0,
+  "icon": "minecraft:compass",
+  "parent": "voyager:ephemeris"
+}

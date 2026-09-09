@@ -5,9 +5,9 @@ issueTrackerURL="https://github.com/Lovkar-Squid/voyager/issues"
 
 [[mods]]
 modId="voyager"
-version="0.2.0"
+version="0.3.0-alpha.12"
 displayName="Voyager"
-description='''A new MineColonies profession that explores the End. Build a Departure Point - as a Launchpad with a rocket or as an End Gate - hire a Voyager, and they will leave on expeditions and come back with end stone, purpur, chorus, ender pearls, shulker shells... if they come back. Made by Lovkar & Claude.'''
+description='''Two MineColonies professions that look outward. The Voyager leaves from a Departure Point - a Launchpad with a rocket or an End Gate - and comes back from the End with end stone, purpur, chorus, ender pearls and shulker shells, if they come back at all. The Astronomer works the night at an Observatory - a Copper Dome, a Stargazer's Keep, a Sand Court, a Skyward Station or an Aperture Array - and brings back plates of what is up there (needs Exposure and Exposure: Space). Made by Lovkar & Claude.'''
 authors="Lovkar & Claude"
 displayURL="https://github.com/Lovkar-Squid/voyager"
 logoFile="voyager_logo.png"
@@ -39,3 +39,33 @@ type="required"
 versionRange="[1.0.800,)"
 ordering="AFTER"
 side="BOTH"
+
+# The Observatory is built around Exposure and Exposure: Space. They are optional so a colony that
+# only wants the Departure Point still loads, but without them the Observatory's blueprints lose
+# the analyser, the lightroom and the photograph frames.
+[[dependencies.voyager]]
+modId="exposure"
+type="optional"
+versionRange="[1.9,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.voyager]]
+modId="exposure_space"
+type="optional"
+versionRange="[1.2,)"
+ordering="AFTER"
+side="BOTH"
+
+[[dependencies.voyager]]
+modId="domum_ornamentum"
+type="required"
+versionRange="[1.0,)"
+ordering="AFTER"
+side="BOTH"
+
+# The astronomer's night shift. MineColonies writes the decision to go to bed straight into
+# CitizenAI.calculateNextState with only a guard-job exemption, so the one job in this mod whose
+# point is the dark needs this to stay awake for it. See mixin/CitizenAINightShiftMixin.java.
+[[mixins]]
+config="voyager.mixins.json"

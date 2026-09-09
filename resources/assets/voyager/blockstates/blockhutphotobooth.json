@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "voyager:block/blockhutphotobooth",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "voyager:block/blockhutphotobooth",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "voyager:block/blockhutphotobooth",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "voyager:block/blockhutphotobooth",
+      "y": 270
+    }
+  }
+}

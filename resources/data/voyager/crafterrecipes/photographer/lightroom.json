@@ -1,0 +1,28 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "minecraft:copper_ingot",
+      "count": 5
+    },
+    {
+      "item": "minecraft:redstone",
+      "count": 3
+    },
+    {
+      "item": "minecraft:tinted_glass",
+      "count": 2
+    },
+    {
+      "item": "minecraft:oak_planks",
+      "count": 4
+    }
+  ],
+  "result": {
+    "item": "exposure:lightroom",
+    "count": 1
+  },
+  "min-building-level": 3,
+  "max-building-level": 5
+}

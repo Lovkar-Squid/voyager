@@ -344,9 +344,14 @@ public class BuildingVoyager extends AbstractBuilding {
         return 1 + (int) VoyagerResearch.strength(building.getColony(), VoyagerResearch.BUDDY_SYSTEM);
     }
 
-    /** One expedition per launch window per Voyager, one more each with Starlight Navigation. */
+    /**
+     * One expedition per launch window per Voyager, one more with Starlight Navigation at the
+     * University, and one more again once the Observatory has printed an almanac (Launch Window).
+     */
     public int getMaxTripsPerPeriod() {
-        final int perVoyager = 1 + (int) VoyagerResearch.strength(colony, VoyagerResearch.STARLIGHT_NAVIGATION);
+        final int perVoyager = 1
+                + (int) VoyagerResearch.strength(colony, VoyagerResearch.STARLIGHT_NAVIGATION)
+                + (int) ObservatoryResearch.strength(colony, ObservatoryResearch.LAUNCH_WINDOW);
         return perVoyager * Math.max(1, getAllAssignedCitizen().size());
     }
 

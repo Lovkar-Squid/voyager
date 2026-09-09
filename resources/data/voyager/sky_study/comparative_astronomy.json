@@ -1,0 +1,20 @@
+{
+  "branch": "darkroom",
+  "sortOrder": 3,
+  "tier": 5,
+  "nights": 10,
+  "costs": [
+    {
+      "item": "exposure_space:excellent_telescopic_lens",
+      "count": 1
+    },
+    {
+      "item": "minecraft:amethyst_block",
+      "count": 16
+    }
+  ],
+  "effect": "comparative_astronomy",
+  "level": 1.0,
+  "icon": "minecraft:amethyst_cluster",
+  "parent": "voyager:second_exposure"
+}

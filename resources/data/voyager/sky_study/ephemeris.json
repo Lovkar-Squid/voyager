@@ -1,0 +1,24 @@
+{
+  "branch": "almanac",
+  "sortOrder": 3,
+  "tier": 4,
+  "nights": 7,
+  "costs": [
+    {
+      "item": "minecraft:ender_eye",
+      "count": 4
+    },
+    {
+      "item": "minecraft:paper",
+      "count": 32
+    },
+    {
+      "item": "minecraft:clock",
+      "count": 1
+    }
+  ],
+  "effect": "ephemeris",
+  "level": 1.0,
+  "icon": "minecraft:clock",
+  "parent": "voyager:star_party"
+}

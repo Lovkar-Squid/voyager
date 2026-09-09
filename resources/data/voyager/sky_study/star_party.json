@@ -1,0 +1,23 @@
+{
+  "branch": "almanac",
+  "sortOrder": 1,
+  "tier": 3,
+  "nights": 5,
+  "costs": [
+    {
+      "item": "minecraft:glowstone",
+      "count": 16
+    },
+    {
+      "item": "minecraft:gold_ingot",
+      "count": 8
+    },
+    {
+      "item": "minecraft:cake",
+      "count": 2
+    }
+  ],
+  "effect": "star_party",
+  "level": 1.0,
+  "icon": "minecraft:firework_star"
+}

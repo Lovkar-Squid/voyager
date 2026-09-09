@@ -1,0 +1,23 @@
+{
+  "branch": "darkroom",
+  "sortOrder": 1,
+  "tier": 3,
+  "nights": 4,
+  "costs": [
+    {
+      "item": "minecraft:redstone",
+      "count": 32
+    },
+    {
+      "item": "minecraft:copper_block",
+      "count": 4
+    },
+    {
+      "item": "minecraft:tinted_glass",
+      "count": 8
+    }
+  ],
+  "effect": "darkroom_discipline",
+  "level": 0.35,
+  "icon": "minecraft:tinted_glass"
+}

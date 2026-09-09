@@ -1,0 +1,19 @@
+{
+  "branch": "watch",
+  "sortOrder": 1,
+  "tier": 4,
+  "nights": 6,
+  "costs": [
+    {
+      "item": "minecraft:book",
+      "count": 16
+    },
+    {
+      "item": "minecraft:lantern",
+      "count": 8
+    }
+  ],
+  "effect": "apprentice",
+  "level": 1.0,
+  "icon": "minecraft:lantern"
+}

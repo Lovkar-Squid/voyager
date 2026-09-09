@@ -1,0 +1,32 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "minecraft:paper",
+      "count": 3
+    },
+    {
+      "item": "minecraft:iron_nugget",
+      "count": 2
+    },
+    {
+      "item": "minecraft:cyan_dye",
+      "count": 1
+    },
+    {
+      "item": "minecraft:magenta_dye",
+      "count": 1
+    },
+    {
+      "item": "minecraft:yellow_dye",
+      "count": 1
+    }
+  ],
+  "result": {
+    "item": "exposure:color_film",
+    "count": 1
+  },
+  "min-building-level": 2,
+  "max-building-level": 5
+}

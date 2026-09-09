@@ -1,0 +1,28 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "minecraft:ender_eye",
+      "count": 2
+    },
+    {
+      "item": "minecraft:copper_block",
+      "count": 2
+    },
+    {
+      "item": "minecraft:tinted_glass",
+      "count": 3
+    },
+    {
+      "item": "minecraft:redstone_block",
+      "count": 1
+    }
+  ],
+  "result": {
+    "item": "exposure:interplanar_projector",
+    "count": 1
+  },
+  "min-building-level": 5,
+  "max-building-level": 5
+}

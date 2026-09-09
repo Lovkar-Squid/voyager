@@ -1,0 +1,35 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/observatory",
+  "researchLevel": 4,
+  "sortOrder": 3,
+  "subtitle": "com.voyager.research.technology.darkroom_discipline.subtitle",
+  "costs": [
+    {
+      "count": 32,
+      "item": "minecraft:redstone"
+    },
+    {
+      "count": 4,
+      "item": "minecraft:copper_block"
+    },
+    {
+      "count": 8,
+      "item": "minecraft:tinted_glass"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/darkroom_discipline",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:tinted_glass",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:observatory",
+      "level": 3
+    }
+  ]
+}

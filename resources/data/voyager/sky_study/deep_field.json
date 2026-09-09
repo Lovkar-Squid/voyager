@@ -1,0 +1,24 @@
+{
+  "branch": "optics",
+  "sortOrder": 3,
+  "tier": 5,
+  "nights": 12,
+  "costs": [
+    {
+      "item": "exposure_space:sculk_telescopic_lens",
+      "count": 1
+    },
+    {
+      "item": "minecraft:echo_shard",
+      "count": 8
+    },
+    {
+      "item": "minecraft:amethyst_block",
+      "count": 8
+    }
+  ],
+  "effect": "deep_field",
+  "level": 1.0,
+  "icon": "minecraft:echo_shard",
+  "parent": "voyager:lens_grinding_ii"
+}

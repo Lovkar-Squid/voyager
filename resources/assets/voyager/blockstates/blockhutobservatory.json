@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "voyager:block/blockhutobservatory",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "voyager:block/blockhutobservatory",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "voyager:block/blockhutobservatory",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "voyager:block/blockhutobservatory",
+      "y": 270
+    }
+  }
+}

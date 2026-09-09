@@ -14,6 +14,9 @@ public final class VoyagerClient {
     public static final ModelLayerLocation VOYAGER_LAYER =
             new ModelLayerLocation(ResourceLocation.fromNamespaceAndPath(Voyager.MODID, "voyager"), "main");
 
+    public static final ModelLayerLocation ASTRONOMER_LAYER =
+            new ModelLayerLocation(ResourceLocation.fromNamespaceAndPath(Voyager.MODID, "astronomer"), "main");
+
     private VoyagerClient() {
     }
 
@@ -24,6 +27,7 @@ public final class VoyagerClient {
 
     private static void registerLayers(final EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(VOYAGER_LAYER, VoyagerModel::createMesh);
+        event.registerLayerDefinition(ASTRONOMER_LAYER, AstronomerModel::createMesh);
     }
 
     /**
@@ -34,6 +38,9 @@ public final class VoyagerClient {
         IModelTypeRegistry.getInstance().register(new SimpleModelType(Voyager.MODEL_ID, 1,
                 new VoyagerModel(event.getEntityModels().bakeLayer(VOYAGER_LAYER)),
                 new VoyagerModel(event.getEntityModels().bakeLayer(VOYAGER_LAYER))));
-        Voyager.LOGGER.info("Voyager suit model registered");
+        IModelTypeRegistry.getInstance().register(new SimpleModelType(Voyager.ASTRONOMER_MODEL_ID, 1,
+                new AstronomerModel(event.getEntityModels().bakeLayer(ASTRONOMER_LAYER)),
+                new AstronomerModel(event.getEntityModels().bakeLayer(ASTRONOMER_LAYER))));
+        Voyager.LOGGER.info("Voyager suit and astronomer coat models registered");
     }
 }

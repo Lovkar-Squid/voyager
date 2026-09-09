@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/observatory",
+  "researchLevel": 4,
+  "sortOrder": 4,
+  "subtitle": "com.voyager.research.technology.apprentice.subtitle",
+  "costs": [
+    {
+      "count": 16,
+      "item": "minecraft:book"
+    },
+    {
+      "count": 8,
+      "item": "minecraft:lantern"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/apprentice",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:lantern",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:observatory",
+      "level": 4
+    }
+  ]
+}

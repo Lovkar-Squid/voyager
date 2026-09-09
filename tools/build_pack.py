@@ -95,8 +95,10 @@ def main():
             "icon": "voyager.png",
             "name": PACK_NAME,
             "authors": ["Lovkar", "Claude"],
-            "desc": "Expedition buildings for the Voyager profession: a Launchpad with a rocket, or an End Gate. "
-                    "Both are the same building - pick the look you like. Works with every colony style.",
+            "desc": "Buildings for the Voyager professions. The Departure Point comes as a Launchpad with a "
+                    "rocket or as an End Gate; the Observatory comes as a Copper Dome, a Stargazer's Keep, "
+                    "a Sand Court, a Skyward Station or an Aperture Array. Each is the same building - pick the look you "
+                    "like. Works with every colony style.",
             "mods": ["structurize", "minecolonies", "voyager"],
             "version": "1",
             "pack-format": "1",

@@ -1,0 +1,24 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "minecraft:book",
+      "count": 1
+    },
+    {
+      "item": "minecraft:leather",
+      "count": 2
+    },
+    {
+      "item": "minecraft:paper",
+      "count": 3
+    }
+  ],
+  "result": {
+    "item": "exposure:album",
+    "count": 1
+  },
+  "min-building-level": 2,
+  "max-building-level": 5
+}

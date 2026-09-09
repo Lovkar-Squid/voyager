@@ -15,8 +15,12 @@ import json
 import math
 import re
 
-import nbtlib
-from nbtlib import tag as T
+try:
+    import nbtlib
+    from nbtlib import tag as T
+except ImportError:      # preview only (Blender's Python): .blueprint export unavailable
+    nbtlib = None
+    T = None
 
 AIR = "minecraft:air"
 DATA_VERSION = 3955  # 1.21.1
@@ -35,15 +39,83 @@ def parse_state(s):
     return name, props
 
 
+# Domum Ornamentum's mix-and-match blocks (shingles, timber frames, panels, pillars and the
+# vanilla stairs/slab/wall shapes) do not carry their material in the block state: the block is one
+# id and a block entity holds a map of "which texture slot" -> "which block's texture". MineColonies'
+# own blueprints are full of them - university4 has 352 - and this is the exact shape they use:
+#     {x,y,z, id: "domum_ornamentum:materially_retexturable", textureData: {<slot>: <block id>}}
+# The slot names are the placeholder textures in DO's models, so they are per block, not per
+# material. Order here is the order material() takes them in.
+DO_TE = "domum_ornamentum:materially_retexturable"
+DO_SLOTS = {
+    "domum_ornamentum:shingle":                 ("minecraft:block/clay", "minecraft:block/oak_planks"),
+    "domum_ornamentum:shingle_flat":            ("minecraft:block/clay", "minecraft:block/oak_planks"),
+    "domum_ornamentum:shingle_flat_lower":      ("minecraft:block/clay", "minecraft:block/oak_planks"),
+    "domum_ornamentum:shingle_slab":            ("minecraft:block/oak_planks", "minecraft:block/dark_oak_planks",
+                                                 "minecraft:block/acacia_planks"),
+    "domum_ornamentum:vanilla_stairs_compat":   ("minecraft:block/oak_planks",),
+    "domum_ornamentum:vanilla_slab_compat":     ("minecraft:block/oak_planks",),
+    "domum_ornamentum:vanilla_wall_compat":     ("minecraft:block/oak_planks",),
+    "domum_ornamentum:vanilla_fence_compat":    ("minecraft:block/oak_planks",),
+    "domum_ornamentum:squarepillar":            ("minecraft:block/oak_planks",),
+    "domum_ornamentum:blockpillar":             ("minecraft:block/oak_planks",),
+    "domum_ornamentum:blockypillar":            ("minecraft:block/oak_planks",),
+    "domum_ornamentum:post":                    ("minecraft:block/oak_planks",),
+    "domum_ornamentum:panel":                   ("minecraft:block/oak_planks",),
+    # timber frames: frame material first, infill second
+    "domum_ornamentum:framed":                  ("minecraft:block/oak_planks", "minecraft:block/dark_oak_planks"),
+    "domum_ornamentum:plain":                   ("minecraft:block/oak_planks", "minecraft:block/dark_oak_planks"),
+    "domum_ornamentum:side_framed":             ("minecraft:block/oak_planks", "minecraft:block/dark_oak_planks"),
+    "domum_ornamentum:horizontal_plain":        ("minecraft:block/oak_planks", "minecraft:block/dark_oak_planks"),
+    "domum_ornamentum:double_crossed":          ("minecraft:block/oak_planks", "minecraft:block/dark_oak_planks"),
+    "domum_ornamentum:one_crossed_lr":          ("minecraft:block/oak_planks", "minecraft:block/dark_oak_planks"),
+    "domum_ornamentum:one_crossed_rl":          ("minecraft:block/oak_planks", "minecraft:block/dark_oak_planks"),
+    "domum_ornamentum:framed_light":            ("minecraft:block/oak_planks", "minecraft:block/glowstone"),
+    "domum_ornamentum:center_light":            ("minecraft:block/oak_planks", "minecraft:block/glowstone"),
+}
+
+
+def entity_tag(x, y, z, entity_id, yaw=0.0, pitch=0.0, extra=None):
+    """One entity, as a blueprint stores it.
+
+    Positions are absolute inside the blueprint (0..size), the same way MineColonies' own armour
+    stands and item frames are stored, and they sit in the middle of their block. Everything else
+    is left at the entity's own defaults - the UUID is re-rolled on placement, so writing one here
+    would only risk two copies of the same entity sharing it.
+    """
+    import nbtlib.tag as T
+    tag = T.Compound({
+        "id": T.String(entity_id),
+        "Pos": T.List[T.Double]([T.Double(x + 0.5), T.Double(y), T.Double(z + 0.5)]),
+        "Motion": T.List[T.Double]([T.Double(0.0), T.Double(0.0), T.Double(0.0)]),
+        "Rotation": T.List[T.Float]([T.Float(yaw), T.Float(pitch)]),
+        "FallDistance": T.Float(0.0),
+        "Fire": T.Short(-1),
+        "Air": T.Short(300),
+        "OnGround": T.Byte(1),
+        "Invulnerable": T.Byte(0),
+        "PortalCooldown": T.Int(0),
+        "CanUpdate": T.Byte(1),
+    })
+    for k, v in (extra or {}).items():
+        tag[k] = v
+    return tag
+
+
 class Structure:
     def __init__(self, name):
         self.name = name
         self.blocks = {}
         self.tags = {}
+        self.entities = []
+        self.materials = {}
         self.anchor = None
 
     # ---------------------------------------------------------------- editing
     def set(self, x, y, z, block):
+        # any plain set clears a material left by an earlier mixed() at this position; mixed()
+        # writes its materials after calling here, so it is unaffected
+        self.materials.pop((x, y, z), None)
         if block is None or block == AIR:
             self.blocks.pop((x, y, z), None)
         else:
@@ -51,6 +123,23 @@ class Structure:
 
     def get(self, x, y, z):
         return self.blocks.get((x, y, z))
+
+    def mixed(self, x, y, z, block, *materials):
+        """Place a Domum Ornamentum mix-and-match block and give it its materials.
+
+        `materials` are block ids in the order DO_SLOTS lists the block's slots - for a shingle
+        that is (roof, support); for a timber frame (frame, infill); for the vanilla shapes just
+        the one. A material outside DO's tag for that slot renders as missing, so stay inside
+        what the tags allow (see docs) - the same trap as a block id that does not exist.
+        """
+        name = parse_state(block)[0]
+        slots = DO_SLOTS.get(name)
+        if slots is None:
+            raise ValueError("not a materially textured Domum Ornamentum block: " + name)
+        if not 1 <= len(materials) <= len(slots):
+            raise ValueError(f"{name} takes 1..{len(slots)} materials, got {len(materials)}")
+        self.set(x, y, z, block)
+        self.materials[(x, y, z)] = dict(zip(slots, materials))
 
     def box(self, x0, y0, z0, x1, y1, z1, block, hollow=False):
         """Inclusive box. hollow=True keeps only the shell."""
@@ -93,6 +182,15 @@ class Structure:
     def tag(self, x, y, z, *names):
         self.tags.setdefault((x, y, z), []).extend(names)
 
+    def entity(self, x, y, z, entity_id, yaw=0.0, pitch=0.0, extra=None):
+        """An entity standing in the middle of this block.
+
+        Blueprints carry entities as well as blocks - that is how MineColonies places its armour
+        stands and item frames, and how the builder knows to charge for them. Ours is Exposure's
+        camera stand: a real tripod the player can put a camera on, not a decoration.
+        """
+        self.entities.append(((x, y, z), entity_id, float(yaw), float(pitch), dict(extra or {})))
+
     def set_anchor(self, x, y, z, block):
         self.anchor = (x, y, z)
         self.set(x, y, z, block)
@@ -110,6 +208,10 @@ class Structure:
             self.set(x + dx, y + dy, z + dz, b)
         for (x, y, z), t in other.tags.items():
             self.tag(x + dx, y + dy, z + dz, *t)
+        for (x, y, z), m in other.materials.items():
+            self.materials[(x + dx, y + dy, z + dz)] = dict(m)
+        for (x, y, z), eid, yaw, pitch, extra in other.entities:
+            self.entities.append(((x + dx, y + dy, z + dz), eid, yaw, pitch, dict(extra)))
 
     # ---------------------------------------------------------------- queries
     def bounds(self):
@@ -127,7 +229,16 @@ class Structure:
     # ---------------------------------------------------------------- exports
     def to_render_json(self):
         (x0, y0, z0), _ = self.bounds()
-        blocks = [[x - x0, y - y0, z - z0, b] for (x, y, z), b in sorted(self.blocks.items())]
+        blocks = []
+        for (x, y, z), b in sorted(self.blocks.items()):
+            entry = [x - x0, y - y0, z - z0, b]
+            mats = self.materials.get((x, y, z))
+            if mats:
+                # the first slot is the one you see: the shingle's tiles, the frame's timber, the
+                # material of a vanilla-shape block. The preview has to show it or the render is
+                # not what the builder will build.
+                entry.append(next(iter(mats.values())))
+            blocks.append(entry)
         return json.dumps({"name": self.name, "blocks": blocks, "size": list(self.size())}, separators=(",", ":"))
 
     def to_blueprint(self, path, file_name, pack_name, pack_path, building_type,
@@ -204,8 +315,19 @@ class Structure:
             "required_mods": T.List[T.String]([T.String(m) for m in required_mods]),
             "palette": pal,
             "blocks": T.IntArray(packed),
-            "tile_entities": T.List[T.Compound]([hut]),
-            "entities": T.List[T.Compound](),
+            "tile_entities": T.List[T.Compound]([hut] + [
+                T.Compound({
+                    "x": T.Short(mx - x0), "y": T.Short(my - y0), "z": T.Short(mz - z0),
+                    "id": T.String(DO_TE),
+                    "textureData": T.Compound({k: T.String(v) for k, v in mats.items()}),
+                })
+                for (mx, my, mz), mats in sorted(self.materials.items())
+                if (mx, my, mz) in self.blocks
+            ]),
+            "entities": T.List[T.Compound]([
+                entity_tag(ex - x0, ey - y0, ez - z0, eid, yaw, pitch, extra)
+                for (ex, ey, ez), eid, yaw, pitch, extra in self.entities
+            ]),
             "optional_data": T.Compound({"structurize": T.Compound({
                 "primary_offset": T.Compound({"x": T.Int(ax - x0), "y": T.Int(ay - y0), "z": T.Int(az - z0)})})}),
         })

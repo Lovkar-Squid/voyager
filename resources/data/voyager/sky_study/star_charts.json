@@ -1,0 +1,24 @@
+{
+  "branch": "almanac",
+  "sortOrder": 2,
+  "tier": 3,
+  "nights": 6,
+  "costs": [
+    {
+      "item": "minecraft:paper",
+      "count": 64
+    },
+    {
+      "item": "minecraft:ink_sac",
+      "count": 16
+    },
+    {
+      "item": "minecraft:map",
+      "count": 1
+    }
+  ],
+  "effect": "star_charts",
+  "level": 0.2,
+  "icon": "minecraft:map",
+  "parent": "voyager:star_party"
+}

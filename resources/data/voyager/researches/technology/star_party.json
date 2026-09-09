@@ -1,0 +1,35 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/observatory",
+  "researchLevel": 4,
+  "sortOrder": 2,
+  "subtitle": "com.voyager.research.technology.star_party.subtitle",
+  "costs": [
+    {
+      "count": 16,
+      "item": "minecraft:glowstone"
+    },
+    {
+      "count": 8,
+      "item": "minecraft:gold_ingot"
+    },
+    {
+      "count": 2,
+      "item": "minecraft:cake"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/star_party",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:firework_star",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:observatory",
+      "level": 3
+    }
+  ]
+}

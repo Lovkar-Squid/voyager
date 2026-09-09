@@ -1,0 +1,20 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "minecraft:stick",
+      "count": 4
+    },
+    {
+      "item": "minecraft:oak_planks",
+      "count": 2
+    }
+  ],
+  "result": {
+    "item": "exposure:photograph_frame",
+    "count": 2
+  },
+  "min-building-level": 1,
+  "max-building-level": 5
+}

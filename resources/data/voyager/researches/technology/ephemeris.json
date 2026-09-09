@@ -1,0 +1,35 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/star_party",
+  "researchLevel": 5,
+  "sortOrder": 1,
+  "subtitle": "com.voyager.research.technology.ephemeris.subtitle",
+  "costs": [
+    {
+      "count": 4,
+      "item": "minecraft:ender_eye"
+    },
+    {
+      "count": 32,
+      "item": "minecraft:paper"
+    },
+    {
+      "count": 1,
+      "item": "minecraft:clock"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/ephemeris",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:clock",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:observatory",
+      "level": 4
+    }
+  ]
+}

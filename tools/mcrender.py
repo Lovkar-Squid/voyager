@@ -20,12 +20,17 @@ from mathutils import Vector
 # for the extracted textures. Override with the MC_JAR / MC_TEX_DIR environment variables.
 JAR = os.environ.get("MC_JAR", os.path.expanduser("~/.minecraft/versions/1.21.1/1.21.1.jar"))
 TEX_DIR = os.environ.get("MC_TEX_DIR", os.path.join(tempfile.gettempdir(), "voyager_tex"))
+# Mod jars to search for textures the vanilla jar does not have, os.pathsep separated. Blueprints
+# that depend on a mod (the Observatory needs Exposure) should preview with that mod's real
+# blocks, not with a grey stand-in.
+EXTRA_JARS = [j for j in os.environ.get("MC_MOD_JARS", "").split(os.pathsep) if j]
 
 # block name -> (top, side, bottom) texture names; None = same as side
 SPECIAL = {
     "quartz_block": ("quartz_block_top", "quartz_block_side", "quartz_block_bottom"),
     "quartz_pillar": ("quartz_pillar_top", "quartz_pillar", None),
     "smooth_quartz": ("quartz_block_bottom", "quartz_block_bottom", None),
+    "smooth_red_sandstone": ("red_sandstone_top", "red_sandstone_top", None),
     "chiseled_quartz_block": ("chiseled_quartz_block_top", "chiseled_quartz_block", None),
     "purpur_pillar": ("purpur_pillar_top", "purpur_pillar", None),
     "blackstone": ("blackstone_top", "blackstone", None),
@@ -113,17 +118,30 @@ MOD_FALLBACK = {
     "structurize:blocksolidsubstitution": ("dirt", "dirt", None),
     "structurize:blocksubstitution": None,  # air - do not draw
     "minecolonies:blockconstructiontape": ("yellow_concrete", "yellow_concrete", None),
+    "voyager:blockhutobservatory": ("lodestone_top", "lodestone_side", "deepslate_tiles"),
+    # Domum Ornamentum's fixed-texture blocks whose textures are not named after the block
+    "domum_ornamentum:blockbarreldeco_standing": ("barrel_top", "barrel_side", "barrel_bottom"),
+    "domum_ornamentum:blockbarreldeco_onside": ("barrel_side", "barrel_side", "barrel_top"),
+    "domum_ornamentum:architectscutter": ("stonecutter_top", "stonecutter_side", "stonecutter_bottom"),
+    # Exposure / Exposure: Space - real textures, read out of their jars via MC_MOD_JARS
+    "exposure_space:analyzer": ("analyzer_top", "analyzer_side", "analyzer_bottom"),
+    "exposure_space:night_analyzer": ("night_analyzer_top", "night_analyzer_side", "analyzer_bottom"),
+    "exposure:lightroom": ("lightroom_top", "lightroom_front", "lightroom_bottom"),
+    "exposure:photograph_frame_small": ("photograph_frame_small",) * 3,
+    "exposure:photograph_frame_medium": ("photograph_frame_medium",) * 3,
+    "exposure:photograph_frame_large": ("photograph_frame_large",) * 3,
 }
 TINT = {"grass_block_top": (0.50, 0.75, 0.30), "grass_block_side": None}
 EMISSIVE = {"sea_lantern", "glowstone", "end_rod", "lantern", "soul_lantern", "magma", "redstone_lamp_on",
             "shroomlight", "torch", "soul_torch", "copper_bulb_lit", "crying_obsidian", "beacon", "ochre_froglight_top",
             "pearlescent_froglight_top", "verdant_froglight_top", "ochre_froglight_side", "pearlescent_froglight_side",
             "verdant_froglight_side", "amethyst_block", "end_portal_frame_top"}
-TRANSPARENT_WORDS = ("glass", "ice", "iron_bars", "chain", "slime", "honey", "leaves", "end_rod", "lantern", "torch",
+TRANSPARENT_WORDS = ("glass", "ice", "grate", "photograph_frame", "iron_bars", "chain", "slime", "honey", "leaves", "end_rod", "lantern", "torch",
                      "chorus_flower", "scaffolding", "ladder", "_door", "trapdoor", "candle", "sapling", "grass", "fern",
                      "flower", "dandelion", "poppy", "allium", "cornflower", "lily", "azure", "oxeye", "vine", "amethyst_cluster",
                      "cobweb", "bell", "anvil", "rail", "lever")
-FULL_CUBE_EXCEPT = ("stairs", "slab", "fence", "wall", "pane", "bars", "chain", "rod", "torch", "lantern", "carpet",
+FULL_CUBE_EXCEPT = ("shingle", "squarepillar", "blockpillar", "blockypillar", "photograph_frame",
+                    "stairs", "slab", "fence", "wall", "pane", "bars", "chain", "rod", "torch", "lantern", "carpet",
                     "pressure_plate", "trapdoor", "door", "ladder", "button", "lever", "candle", "chorus", "sign",
                     "banner", "bed", "rail", "lightning_rod", "scaffolding", "flower", "grass", "fern", "sapling",
                     "vine", "anvil", "bell", "campfire", "cauldron", "hopper", "path", "end_portal_frame", "daylight",
@@ -139,13 +157,26 @@ def texture_path(name):
     os.makedirs(TEX_DIR, exist_ok=True)
     path = os.path.join(TEX_DIR, name + ".png")
     if not os.path.exists(path):
+        blob = None
         with zipfile.ZipFile(JAR) as z:
             entry = f"assets/minecraft/textures/block/{name}.png"
-            if entry not in z.namelist():
-                _tex_cache[name] = None
-                return None
-            with open(path, "wb") as f:
-                f.write(z.read(entry))
+            if entry in z.namelist():
+                blob = z.read(entry)
+        for jar in EXTRA_JARS if blob is None else ():
+            if not os.path.exists(jar):
+                continue
+            with zipfile.ZipFile(jar) as z:
+                hit = next((n for n in z.namelist()
+                            if n.startswith("assets/") and "/textures/" in n
+                            and n.endswith("/" + name + ".png")), None)
+                if hit:
+                    blob = z.read(hit)
+                    break
+        if blob is None:
+            _tex_cache[name] = None
+            return None
+        with open(path, "wb") as f:
+            f.write(blob)
     _tex_cache[name] = path
     return path
 
@@ -155,6 +186,10 @@ def textures_for(block_id):
     if block_id in MOD_FALLBACK:
         fb = MOD_FALLBACK[block_id]
         return None if fb is None else (fb[0], fb[1], fb[2] or fb[1])
+    if block_id.startswith("domum_ornamentum:"):
+        # DO's plain blocks name their texture after themselves; texture_path finds it in the jar
+        n = block_id.split(":", 1)[1]
+        return (n, n, n)
     if not block_id.startswith("minecraft:"):
         return ("stone", "stone", "stone")
     name = block_id.split(":", 1)[1]
@@ -176,6 +211,7 @@ def textures_for(block_id):
                      "cut_copper": "cut_copper", "smooth_stone": "smooth_stone", "cobbled_deepslate": "cobbled_deepslate",
                      "glass": "glass", "iron": "iron_block", "oak": "oak_planks", "spruce": "spruce_planks",
                      "dark_oak": "dark_oak_planks", "birch": "birch_planks", "crimson": "crimson_planks",
+                     "acacia": "acacia_planks", "jungle": "jungle_planks", "mangrove": "mangrove_planks",
                      "warped": "warped_planks", "bamboo": "bamboo_planks", "cherry": "cherry_planks",
                      "tuff_brick": "tuff_bricks", "polished_tuff": "polished_tuff", "sandstone": "sandstone_top",
                      "red_sandstone": "red_sandstone_top", "smooth_sandstone": "sandstone_top"}
@@ -251,10 +287,30 @@ def get_material(tex):
 
 
 # ------------------------------------------------------------------ geometry
+# A Domum Ornamentum mix-and-match block is a vanilla shape wearing another block's texture, so
+# for the preview it is enough to borrow the vanilla shape.
+DO_SHAPE = {
+    "domum_ornamentum:vanilla_stairs_compat": "x_stairs",
+    "domum_ornamentum:vanilla_slab_compat": "x_slab",
+    "domum_ornamentum:vanilla_wall_compat": "x_wall",
+    "domum_ornamentum:vanilla_fence_compat": "x_fence",
+    "domum_ornamentum:shingle": "x_stairs",
+    "domum_ornamentum:shingle_flat": "x_stairs",
+    "domum_ornamentum:shingle_flat_lower": "x_stairs",
+    "domum_ornamentum:shingle_slab": "x_slab",
+}
+
+
 def boxes_for(name, props):
     """Return list of (x0,y0,z0,x1,y1,z1) in block units [0,1] for a block."""
     def full():
         return [(0, 0, 0, 1, 1, 1)]
+    if name in DO_SHAPE:
+        name = DO_SHAPE[name]
+    if name in ("domum_ornamentum:squarepillar", "domum_ornamentum:blockpillar", "domum_ornamentum:blockypillar"):
+        return [(1 / 16, 0, 1 / 16, 15 / 16, 1, 15 / 16)]
+    if "photograph_frame" in name:
+        return [(0, 0, 15 / 16, 1, 1, 1)]
     if name.endswith("_slab"):
         t = props.get("type", "bottom")
         if t == "double":
@@ -381,19 +437,25 @@ FACES = {  # face -> (normal, 4 corners as (x,y,z) selectors on box (0=min,1=max
 
 
 def build_meshes(blocks):
-    """blocks: list of [x,y,z,state]. Creates Blender objects; returns (objects, bounds)."""
+    """blocks: list of [x,y,z,state] or [x,y,z,state,material].
+
+    The fifth element is Domum Ornamentum's material for a mix-and-match block: the shape comes
+    from the DO block, the texture from the material, exactly as the game does it.
+    """
     parsed = {}
-    for x, y, z, state in blocks:
+    for entry in blocks:
+        x, y, z, state = entry[:4]
+        mat = entry[4] if len(entry) > 4 else None
         if "[" in state:
             name, rest = state.split("[", 1)
             props = dict(kv.split("=") for kv in rest[:-1].split(",")) if rest[:-1] else {}
         else:
             name, props = state, {}
-        parsed[(x, y, z)] = (name, props)
-    opaque = {p for p, (n, pr) in parsed.items() if is_full_opaque(n.split(":", 1)[-1] if n.startswith("minecraft:") else n, pr) and textures_for(n) is not None}
+        parsed[(x, y, z)] = (name, props, mat)
+    opaque = {p for p, (n, pr, mt) in parsed.items() if is_full_opaque(n.split(":", 1)[-1] if n.startswith("minecraft:") else n, pr) and textures_for(mt or n) is not None}
     per_tex = {}  # tex -> (verts, faces, uvs)
-    for (x, y, z), (name, props) in parsed.items():
-        texs = textures_for(name)
+    for (x, y, z), (name, props, mat) in parsed.items():
+        texs = textures_for(mat or name)
         if texs is None:
             continue
         top, side, bottom = texs

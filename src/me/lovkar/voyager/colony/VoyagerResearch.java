@@ -30,6 +30,9 @@ public final class VoyagerResearch {
     /** Extra Voyagers per Departure Point. */
     public static final ResourceLocation BUDDY_SYSTEM = effect("buddy_system");
 
+    // What the Observatory sells is read through ObservatoryResearch, not here: those effects are
+    // granted by its own studies rather than by the University's tree.
+
     private VoyagerResearch() {
     }
 

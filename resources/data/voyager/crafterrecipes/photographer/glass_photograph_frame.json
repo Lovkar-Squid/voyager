@@ -1,0 +1,20 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "minecraft:glass_pane",
+      "count": 4
+    },
+    {
+      "item": "minecraft:stick",
+      "count": 2
+    }
+  ],
+  "result": {
+    "item": "exposure:glass_photograph_frame",
+    "count": 2
+  },
+  "min-building-level": 2,
+  "max-building-level": 5
+}

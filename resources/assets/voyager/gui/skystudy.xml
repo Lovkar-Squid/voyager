@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<window xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/ldtteam/BlockUI/version/main/src/main/resources/assets/blockui/gui/block_ui.xsd"
+        size="190 244">
+
+    <image source="minecolonies:textures/gui/builderhut/builder_paper.png" size="190 244"/>
+    <text id="title" size="150 11" pos="20 13" color="black" textalign="MIDDLE"
+          label="$(com.voyager.gui.study.title)"/>
+    <text id="progress" size="170 11" pos="10 27" color="black" textalign="MIDDLE"/>
+
+    <list id="studies" size="168 195" pos="11 41"
+          emptytext="$(com.voyager.gui.study.empty)" emptycolor="black">
+        <box size="100% 32" linewidth="0">
+            <button id="start" size="150 17" pos="2 1" align="MIDDLE" color="black"
+                    source="minecolonies:textures/gui/builderhut/builder_button_medium_large.png"
+                    disabled="minecolonies:textures/gui/builderhut/builder_button_medium_large_disabled.png"
+                    disabledsize="150 17"/>
+            <text id="status" size="164 12" pos="3 19" color="black" textscale="0.8"/>
+        </box>
+    </list>
+</window>

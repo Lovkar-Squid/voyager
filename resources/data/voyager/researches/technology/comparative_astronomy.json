@@ -1,0 +1,31 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "voyager:technology/second_exposure",
+  "researchLevel": 6,
+  "sortOrder": 1,
+  "subtitle": "com.voyager.research.technology.comparative_astronomy.subtitle",
+  "costs": [
+    {
+      "count": 1,
+      "item": "exposure_space:excellent_telescopic_lens"
+    },
+    {
+      "count": 16,
+      "item": "minecraft:amethyst_block"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/comparative_astronomy",
+      "level": 1
+    }
+  ],
+  "icon": "minecraft:amethyst_cluster",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "voyager:observatory",
+      "level": 5
+    }
+  ]
+}

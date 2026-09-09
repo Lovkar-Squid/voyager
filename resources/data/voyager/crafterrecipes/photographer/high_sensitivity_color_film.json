@@ -1,0 +1,20 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "exposure:color_film",
+      "count": 1
+    },
+    {
+      "item": "minecraft:glowstone_dust",
+      "count": 3
+    }
+  ],
+  "result": {
+    "item": "exposure:high_sensitivity_color_film",
+    "count": 1
+  },
+  "min-building-level": 4,
+  "max-building-level": 5
+}

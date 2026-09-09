@@ -1,0 +1,20 @@
+{
+  "branch": "optics",
+  "sortOrder": 2,
+  "tier": 4,
+  "nights": 8,
+  "costs": [
+    {
+      "item": "exposure_space:good_telescopic_lens",
+      "count": 1
+    },
+    {
+      "item": "minecraft:amethyst_block",
+      "count": 12
+    }
+  ],
+  "effect": "lens_grinding",
+  "level": 2.0,
+  "icon": "minecraft:tinted_glass",
+  "parent": "voyager:lens_grinding"
+}

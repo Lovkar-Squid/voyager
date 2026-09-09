@@ -1,0 +1,20 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "minecraft:copper_ingot",
+      "count": 3
+    },
+    {
+      "item": "minecraft:stick",
+      "count": 4
+    }
+  ],
+  "result": {
+    "item": "exposure:camera_stand",
+    "count": 1
+  },
+  "min-building-level": 3,
+  "max-building-level": 5
+}

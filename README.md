@@ -2,8 +2,6 @@
 
 *A new MineColonies profession that explores the End.*
 
-**[Discord](https://discord.gg/BVztrTtXFu)** - questions, dev builds and bug reports.
-
 > **BETA 0.2.0** - the whole expedition loop, both building looks, the research tree and the
 > effects have been play-tested in single-player and LAN games. Dedicated servers, the dragon
 > encounter and a few research effects have not been exercised yet. Please report bugs with your

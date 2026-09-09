@@ -1,0 +1,24 @@
+{
+  "type": "recipe",
+  "crafter": "photographer_crafting",
+  "inputs": [
+    {
+      "item": "minecraft:redstone",
+      "count": 4
+    },
+    {
+      "item": "minecraft:glowstone",
+      "count": 1
+    },
+    {
+      "item": "minecraft:copper_ingot",
+      "count": 2
+    }
+  ],
+  "result": {
+    "item": "exposure:flash",
+    "count": 1
+  },
+  "min-building-level": 4,
+  "max-building-level": 5
+}

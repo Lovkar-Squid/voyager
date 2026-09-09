@@ -1,0 +1,35 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "minecolonies:technology/memoryaid",
+  "researchLevel": 3,
+  "sortOrder": 7,
+  "subtitle": "com.voyager.research.technology.photobooth.subtitle",
+  "costs": [
+    {
+      "count": 16,
+      "item": "minecraft:paper"
+    },
+    {
+      "count": 4,
+      "item": "minecraft:copper_ingot"
+    },
+    {
+      "count": 2,
+      "item": "minecraft:tinted_glass"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/blockhutphotobooth",
+      "level": 1
+    }
+  ],
+  "icon": "voyager:blockhutphotobooth",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "minecolonies:library",
+      "level": 2
+    }
+  ]
+}

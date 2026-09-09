@@ -21,7 +21,7 @@ HUT = "voyager:voyager"
 
 EFFECTS = {
     "void_insurance": ([0.25, 0.5], "Voyagers take %3$s%% less damage in the End"),
-    "starlight_navigation": ([1.0], "One more expedition per launch window"),
+    "starlight_navigation": ([1.0], "One more expedition per launch window (the Observatory's Launch Window study adds another)"),
     "rapid_refit": ([0.25], "Expeditions take %3$s%% less time"),
     "shulker_whisperer": ([1.0], "Every shulker a Voyager beats leaves an extra shell"),
     "ender_harvest": ([1.0], "Every enderman a Voyager beats leaves an extra ender pearl"),

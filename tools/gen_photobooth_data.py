@@ -1,0 +1,121 @@
+"""Everything the Photo Booth needs that is not code or blocks: its unlock research, its crafter
+recipes and its lang keys.
+
+The Photographer is the colony's crafter for Exposure. Every recipe here is one the player would
+otherwise have to hand-craft, so teaching them to the booth is the whole point of the profession:
+the colony makes its own film, frames, albums and cameras.
+"""
+import json
+import os
+
+import paths
+
+DATA = paths.res("data", "voyager")
+LANG = paths.res("assets", "voyager", "lang", "en_us.json")
+CRAFTER = "photographer_crafting"
+
+# The Exposure catalogue, in the order the colony grows into it.
+# name, min building level, inputs [(id, count)], output (id, count)
+RECIPES = [
+    ("black_and_white_film", 1, [("minecraft:paper", 3), ("minecraft:iron_nugget", 2),
+                                 ("minecraft:black_dye", 1)], ("exposure:black_and_white_film", 1)),
+    ("photograph_frame", 1, [("minecraft:stick", 4), ("minecraft:oak_planks", 2)],
+     ("exposure:photograph_frame", 2)),
+    ("album", 2, [("minecraft:book", 1), ("minecraft:leather", 2), ("minecraft:paper", 3)],
+     ("exposure:album", 1)),
+    ("color_film", 2, [("minecraft:paper", 3), ("minecraft:iron_nugget", 2),
+                       ("minecraft:cyan_dye", 1), ("minecraft:magenta_dye", 1),
+                       ("minecraft:yellow_dye", 1)], ("exposure:color_film", 1)),
+    ("glass_photograph_frame", 2, [("minecraft:glass_pane", 4), ("minecraft:stick", 2)],
+     ("exposure:glass_photograph_frame", 2)),
+    ("camera", 3, [("minecraft:copper_ingot", 4), ("minecraft:redstone", 2),
+                   ("minecraft:glass_pane", 2), ("minecraft:leather", 2)], ("exposure:camera", 1)),
+    ("camera_stand", 3, [("minecraft:copper_ingot", 3), ("minecraft:stick", 4)],
+     ("exposure:camera_stand", 1)),
+    ("lightroom", 3, [("minecraft:copper_ingot", 5), ("minecraft:redstone", 3),
+                      ("minecraft:tinted_glass", 2), ("minecraft:oak_planks", 4)],
+     ("exposure:lightroom", 1)),
+    ("high_sensitivity_black_and_white_film", 4,
+     [("exposure:black_and_white_film", 1), ("minecraft:glowstone_dust", 3)],
+     ("exposure:high_sensitivity_black_and_white_film", 1)),
+    ("high_sensitivity_color_film", 4,
+     [("exposure:color_film", 1), ("minecraft:glowstone_dust", 3)],
+     ("exposure:high_sensitivity_color_film", 1)),
+    ("flash", 4, [("minecraft:redstone", 4), ("minecraft:glowstone", 1), ("minecraft:copper_ingot", 2)],
+     ("exposure:flash", 1)),
+    ("interplanar_projector", 5, [("minecraft:ender_eye", 2), ("minecraft:copper_block", 2),
+                                  ("minecraft:tinted_glass", 3), ("minecraft:redstone_block", 1)],
+     ("exposure:interplanar_projector", 1)),
+]
+
+UNLOCK = {
+    "branch": "minecolonies:technology",
+    "parentResearch": "minecolonies:technology/memoryaid",
+    "researchLevel": 3,
+    "sortOrder": 7,
+    "subtitle": "com.voyager.research.technology.photobooth.subtitle",
+    "costs": [
+        {"count": 16, "item": "minecraft:paper"},
+        {"count": 4, "item": "minecraft:copper_ingot"},
+        {"count": 2, "item": "minecraft:tinted_glass"},
+    ],
+    "effects": [{"id": "voyager:effects/blockhutphotobooth", "level": 1}],
+    "icon": "voyager:blockhutphotobooth",
+    "requirements": [{"type": "minecolonies:building", "building": "minecolonies:library", "level": 2}],
+}
+
+
+def main():
+    recipes = f"{DATA}/crafterrecipes/photographer"
+    os.makedirs(recipes, exist_ok=True)
+    for stale in os.listdir(recipes):
+        if stale.endswith(".json"):
+            os.remove(os.path.join(recipes, stale))
+    os.makedirs(f"{DATA}/researches/technology", exist_ok=True)
+    os.makedirs(f"{DATA}/researches/effects", exist_ok=True)
+
+    for name, level, inputs, (out_id, out_count) in RECIPES:
+        recipe = {
+            "type": "recipe",
+            "crafter": CRAFTER,
+            "inputs": [{"item": item, "count": count} for item, count in inputs],
+            "result": {"item": out_id, "count": out_count},
+            "min-building-level": level,
+            "max-building-level": 5,
+        }
+        with open(f"{recipes}/{name}.json", "w") as f:
+            json.dump(recipe, f, indent=2)
+
+    with open(f"{DATA}/researches/effects/blockhutphotobooth.json", "w") as f:
+        json.dump({"effect": True, "levels": [1.0]}, f, indent=2)
+    with open(f"{DATA}/researches/technology/photobooth.json", "w") as f:
+        json.dump(UNLOCK, f, indent=2)
+
+    with open(LANG) as f:
+        lang = json.load(f)
+    lang.update({
+        "block.minecolonies.blockhutphotobooth": "Photo Booth",
+        "block.voyager.blockhutphotobooth": "Photo Booth",
+        "block.voyager.blockhutphotobooth.name": "Photo Booth",
+        "item.voyager.blockhutphotobooth": "Photo Booth",
+        "com.minecolonies.building.photobooth": "Photo Booth",
+        "com.voyager.building.photobooth": "Photo Booth",
+        "com.voyager.building.photobooth.desc": "The colony's darkroom and print shop. The Photographer develops the film you bring home, prints it in the Lightroom, ages and copies and frames it, binds albums - and crafts every camera, film and frame the colony needs. And when the bench is quiet, they pick up the camera and take a picture themselves. Build it as a Copper Dome, a Stargazer's Keep, a Sand Court, a Skyward Station or an Aperture Array. Needs Exposure.",
+        "com.voyager.job.photographer": "Photographer",
+        "com.minecolonies.coremod.jei.photographer": "Develops, prints and frames the colony's photographs - and takes a few of their own.",
+        "voyager:photographer.job.desc": "Runs the colony's darkroom: develops film, prints photographs, ages and copies and frames them, and crafts everything Exposure needs. When there is nothing on the bench, they take a photograph themselves.",
+        "voyager:photographer.skills.desc": "Creativity decides what they can be taught, Dexterity how steady the hand is at the enlarger.",
+        "com.voyager.research.technology.photobooth.name": "A Moment Held",
+        "com.voyager.research.technology.photobooth.subtitle": "Somebody has to develop it",
+        "com.voyager.research.effects.blockhutphotobooth.description": "Unlocks the Photo Booth",
+        "com.voyager.photo.taken": "%1$s took a photograph",
+        "com.voyager.photo.no_camera": "The Photo Booth has no camera - the photographer has asked for one",
+    })
+    with open(LANG, "w") as f:
+        json.dump(lang, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    print(f"{len(RECIPES)} recipes, 1 unlock research, lang keys: {len(lang)}")
+
+
+if __name__ == "__main__":
+    main()

@@ -41,6 +41,8 @@ They resolve paths relative to the repository (`tools/paths.py`), read third-par
 | `gen_sounds.py` | the six synthesized sounds (`assets/voyager/sounds/*.ogg`) and `sounds.json` |
 | `gen_hut_model.py` | the Departure Point block model (vanilla textures only) |
 | `gen_skin.py` | the Voyager suit textures and citizen icons (heads come from MineColonies' Nether Miner textures, so this one needs the MineColonies jar) |
+| `gen_astronomer_skin.py` | the astronomer's coat textures and citizen icons (heads come from MineColonies' Student textures) |
+| `preview_skin.py` | flat front/back paper-doll previews of a skin into `tools/out/` - a look-check, not a render |
 
 `designs.py` describes every level of both looks as voxels, `voxel.py` turns a design into a
 Structurize `.blueprint` (and back, for verification). `build_pack.py` is also the test suite for

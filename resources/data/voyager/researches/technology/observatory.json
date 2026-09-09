@@ -1,0 +1,35 @@
+{
+  "branch": "minecolonies:technology",
+  "parentResearch": "minecolonies:technology/memoryaid",
+  "researchLevel": 3,
+  "sortOrder": 6,
+  "subtitle": "com.voyager.research.technology.observatory.subtitle",
+  "costs": [
+    {
+      "count": 32,
+      "item": "minecraft:glass"
+    },
+    {
+      "count": 8,
+      "item": "minecraft:amethyst_shard"
+    },
+    {
+      "count": 1,
+      "item": "minecraft:spyglass"
+    }
+  ],
+  "effects": [
+    {
+      "id": "voyager:effects/blockhutobservatory",
+      "level": 1
+    }
+  ],
+  "icon": "voyager:blockhutobservatory",
+  "requirements": [
+    {
+      "type": "minecolonies:building",
+      "building": "minecolonies:library",
+      "level": 3
+    }
+  ]
+}
