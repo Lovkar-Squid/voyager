@@ -61,6 +61,15 @@ public final class ColonyCamera {
         }
     }
 
+    /** A roll with a frame still free on it. Full rolls are for the darkroom, not the camera. */
+    public static boolean isFilmWithRoom(final ItemStack stack) {
+        try {
+            return available() && me.lovkar.voyager.compat.ExposureCamera.isFilmWithRoom(stack);
+        } catch (final Throwable exposureChanged) {
+            return false;
+        }
+    }
+
     public static boolean hasFilm(final ItemStack camera) {
         try {
             return available() && me.lovkar.voyager.compat.ExposureCamera.hasFilm(camera);

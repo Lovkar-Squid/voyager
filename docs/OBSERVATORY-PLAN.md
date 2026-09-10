@@ -1266,3 +1266,29 @@ that is the picture worth having. The work order is remembered (persisted) so ea
 progress picture, titled *Town Hall, level 3 - halfway up (day 11)*, taken from the same kind of
 viewpoint as the finished one and pasted into the same album; the finished picture follows when
 the builder is done. A finished building supersedes its own halfway picture if that was never taken.
+
+### 19.5 The review before the first test (`alpha.17`)
+
+An independent read of every class written today against the decompiled MineColonies sources,
+before Marko runs any of it. What it caught, all fixed in `alpha.17`:
+
+- **The photographer would never have taken a picture.** `AbstractEntityAICrafting` leaves IDLE
+  only when `hasWorkToDo()` - a crafting request - so the `decide()` override that starts a shoot
+  was unreachable while idle (the same trap the Voyager fell into in 0.1.6, forgotten). Now
+  `hasWorkToDo()` also counts a sitter at the mark, a chronicle job that is due, and time for a
+  portrait, without counting any inventory.
+- **The camera could vanish.** It lived in a field and the hand slot; MineColonies resets a
+  worker's AI for sleep, rain and raids without asking, and the reset would have dropped the
+  colony's camera, lens, flash and film. Both AIs now keep the camera in the worker's own pack and
+  look it up by slot; `decide()` carries a stray camera back to the shelf first. The shoot's own
+  states are no longer interruptible for a meal, and the day's shooting stops at 10500, before the
+  10600 bedtime.
+- Full rolls of film were being reloaded from the shelf (any `FilmRollItem` matched) - now only
+  rolls with a frame free; an ejected full roll is never dropped when the shelf is full.
+- A first-time build is level 0 until it is finished, so every halfway picture of a new building
+  was being discarded; the render meta was being wiped every second by the base AI (no viewfinder
+  pose); the credited night was not persisted (a restart mid-night paid twice); a zenith object
+  gave a one-colour frame (pitch clamped to −85°); an empty `catalog_texture` tried to open a
+  directory; visitors were painted grey in their own portraits (`instanceof AbstractEntityCitizen`);
+  the escort was not re-rallied after a restart; a blueprint-tagged lookout outside the colony would
+  have been refused by the guards; a camera in a colleague's hands was being re-requested.

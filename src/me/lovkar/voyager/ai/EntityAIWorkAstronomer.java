@@ -132,6 +132,9 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
     private static final ResourceLocation CAMERA_ITEM = ResourceLocation.fromNamespaceAndPath("exposure", "camera");
     private static final ResourceLocation FILM_ITEM = ResourceLocation.fromNamespaceAndPath("exposure", "black_and_white_film");
     private static final String STAT_LOOKOUT = "lookout_nights";
+    /** When the camera was last carried home, so a full shelf does not turn into a loop. */
+    private long lastReturnAttempt = Long.MIN_VALUE / 2;
+    private static final long RETURN_RETRY = 1200L;
 
     public EntityAIWorkAstronomer(final @NotNull JobAstronomer job) {
         super(job);
@@ -163,6 +166,20 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         return AIWorkerState.START_WORKING;
     }
 
+    /** "working" while on the watch or in the darkroom; "working camera" up at the lookout with it. */
+    @Override
+    protected void updateRenderMetaData() {
+        final IAIState state = getState();
+        if (atLookout && !camera.isEmpty()
+                && (state == Watch.WALK_TO_SCOPE || state == Watch.OBSERVE || state == Watch.SHOOT_SKY)) {
+            worker.setRenderMetadata(META_CAMERA);
+        } else if (state == Watch.OBSERVE || state == Watch.DEVELOP || state == Watch.SHOOT_SKY) {
+            worker.setRenderMetadata(RENDER_META_WORKING);
+        } else {
+            worker.setRenderMetadata("");
+        }
+    }
+
     // ------------------------------------------------------------------ deciding
 
     /** Night and a clear sky send the astronomer out; anything else keeps them in. */
@@ -172,9 +189,15 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
             return AIWorkerState.IDLE;
         }
         stockTheStudy();
+        if (job.creditedTonight(world)) {
+            lastNight = world.getGameTime() / 24000L;      // a restart forgot the field, not the job
+        }
         cameraCarried();
-        if (!camera.isEmpty() && (!isNight() || world.getGameTime() / 24000L == lastNight)) {
-            // Dawn, or the night is in the book: the camera goes back on the shelf first.
+        if (!camera.isEmpty() && (!isNight() || world.getGameTime() / 24000L == lastNight)
+                && world.getGameTime() - lastReturnAttempt > RETURN_RETRY) {
+            // Dawn, or the night is in the book: the camera goes back on the shelf first. If the
+            // shelf is full it stays in the pack and the darkroom is not held up for it.
+            lastReturnAttempt = world.getGameTime();
             job.setStatus(JobAstronomer.Status.WALKING);
             return Watch.FILE_PLATE;
         }
@@ -314,14 +337,16 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         }
         if (ColonyCamera.hasFilm(camera)) {
             final ItemStack full = ColonyCamera.ejectFilm(camera);
-            if (!full.isEmpty()) {
-                InventoryUtils.addItemStackToProvider(building, full);
+            if (!full.isEmpty() && !InventoryUtils.addItemStackToProvider(building, full)
+                    && !InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), full)) {
+                ColonyCamera.loadFilm(camera, full);            // nowhere to put it; it stays in
+                return;
             }
         }
         for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
             for (int slot = 0; slot < handler.getSlots(); slot++) {
                 final ItemStack stack = handler.getStackInSlot(slot);
-                if (!stack.isEmpty() && ColonyCamera.isFilm(stack)) {
+                if (!stack.isEmpty() && ColonyCamera.isFilmWithRoom(stack)) {
                     ColonyCamera.loadFilm(camera, handler.extractItem(slot, 1, false));
                     return;
                 }
@@ -507,7 +532,8 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
      */
     private void lookAtTheSky() {
         final float yaw = caughtTonight != null ? caughtTonight.yaw() : worker.getYRot();
-        final float pitch = caughtTonight != null ? Math.min(-20.0f, caughtTonight.pitch()) : -60.0f;
+        // Never straight up: at -90 the camera's "right" is undefined and the frame is one colour.
+        final float pitch = Math.max(-85.0f, caughtTonight != null ? Math.min(-20.0f, caughtTonight.pitch()) : -60.0f);
         worker.setYRot(yaw);
         worker.yRotO = yaw;
         worker.setYHeadRot(yaw);
@@ -558,7 +584,7 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         level.playSound(null, worker.blockPosition(), exposureSound("item.camera.shutter_close"),
                 SoundSource.NEUTRAL, 0.7f, 1.0f);
         // The object itself, as big as this lens makes it.
-        if (caughtTonight != null && caughtTonight.catalogTexture() != null) {
+        if (caughtTonight != null && caughtTonight.catalogTexture() != null && !caughtTonight.catalogTexture().isEmpty()) {
             final ResourceLocation texture = ResourceLocation.tryParse(caughtTonight.catalogTexture());
             final double fov = ColonyCamera.fovScale(camera);
             final boolean telescopic = fov <= 0.55;
@@ -576,7 +602,10 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         shot = null;
         film = new byte[0];
         if (!photograph.isEmpty()) {
-            InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), photograph);
+            if (!InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), photograph)
+                    && !InventoryUtils.addItemStackToProvider(building, photograph)) {
+                Voyager.LOGGER.info("[Observatory] no room anywhere for the lookout photograph");
+            }
             worker.getCitizenExperienceHandler().addExperience(3.0);
             MessageUtils.format(Component.translatable("com.voyager.sky.lookout_photo", name,
                             caughtTonight != null ? Component.translatable(caughtTonight.nameKey())
@@ -623,6 +652,7 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         sayIfTheSkyIsEmpty();
         final long night = world.getGameTime() / 24000L;
         lastNight = night;
+        job.creditedNight(night);      // survives a restart, so the night is never paid twice
         // Tonight is in the book - but the astronomer may only go to bed once they are home again
         // (see filePlate): a watch kept from the lookout still has a photograph to take and a walk
         // back, and MineColonies would put them to sleep on the hill the moment the night counted.

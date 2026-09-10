@@ -104,7 +104,7 @@ public final class VisitorSitting {
             return leave();
         }
         final BlockPos mark = booth.getSitterPosition();
-        if (EntityNavigationUtils.walkToPos(me, mark, 1, true)) {
+        if (EntityNavigationUtils.walkToPos(me, mark, 2, true)) {
             booth.sitterArrived(visitor);
             patience = PATIENCE;
             return State.POSING;
@@ -130,7 +130,7 @@ public final class VisitorSitting {
         }
         final BlockPos mark = booth.getSitterPosition();
         if (me.blockPosition().distSqr(mark) > 4.0) {
-            EntityNavigationUtils.walkToPos(me, mark, 1, true);     // drifted; back to the mark
+            EntityNavigationUtils.walkToPos(me, mark, 2, true);     // drifted; back to the mark
         } else {
             final LivingEntity photographer = booth.photographerNear(me, 12.0);
             if (photographer != null) {

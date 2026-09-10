@@ -71,7 +71,7 @@ public class EntityAIWorkPhotographer
 
     /** The photographer's own states, alongside the crafting ones. */
     public enum Shoot implements IAIState {
-        WALK_TO_STUDIO(true), WALK_TO_VIEWPOINT(true), AIM(true), EXPOSE(false), FILE_PHOTOGRAPH(true);
+        WALK_TO_STUDIO(true), WALK_TO_VIEWPOINT(true), AIM(false), EXPOSE(false), FILE_PHOTOGRAPH(false);
 
         private final boolean okayToEat;
 
@@ -141,12 +141,63 @@ public class EntityAIWorkPhotographer
     }
 
     /**
+     * The crafting AI only leaves IDLE when there is work, and "work" to it means a crafting
+     * request. A photograph is work too - a sitter at the mark, a building owed to the chronicle,
+     * or simply time for a portrait - so this says so, and {@link #decide()} sorts out which.
+     * Kept cheap: no inventory is counted here; the shelf is checked at most every few seconds by
+     * {@link #canShootNow(boolean)} once the AI has actually woken up.
+     */
+    @Override
+    public boolean hasWorkToDo() {
+        if (super.hasWorkToDo()) {
+            return true;
+        }
+        if (building == null || building.getBuildingLevel() < 1 || !ColonyCamera.available()) {
+            return false;
+        }
+        if (!cameraCarried().isEmpty()) {
+            return true;                              // the camera has to go back on the shelf
+        }
+        if (building.hasSitterWaiting()) {
+            return true;
+        }
+        final long now = world.getGameTime();
+        if (now < nextStockCheck) {
+            return false;                             // looked recently; nothing changed
+        }
+        return (building.hasChronicleWork() && now - lastChronicle >= BETWEEN_CHRONICLE)
+                || now - lastShot >= BETWEEN_SHOOTS;
+    }
+
+    /** The crafting AI wipes the render meta every second; ours says "camera" while it is up. */
+    @Override
+    protected void updateRenderMetaData() {
+        final IAIState state = getState();
+        if ((state == Shoot.AIM || state == Shoot.EXPOSE || state == Shoot.FILE_PHOTOGRAPH) && !camera.isEmpty()) {
+            worker.setRenderMetadata(JobPhotographer.META_CAMERA);
+        } else {
+            super.updateRenderMetaData();
+        }
+    }
+
+    /**
      * A sitter at the mark outranks the bench - a paying customer is standing there. Otherwise the
      * bench first, and only when the crafting AI has nothing to do does the camera come off the
      * shelf: for the chronicle if the builder has been busy, for a portrait if not.
      */
     @Override
     protected IAIState decide() {
+        // Anything left over from an interrupted shoot - MineColonies resets the AI for sleep,
+        // rain and raids without asking - is cleared, and a camera still in the pack goes back.
+        shot = null;
+        film = new byte[0];
+        if (!cameraCarried().isEmpty() && getState() != Shoot.AIM && getState() != Shoot.EXPOSE) {
+            if (walkToBuilding()) {
+                putCameraBack();
+            } else {
+                return AIWorkerState.START_WORKING;
+            }
+        }
         if (building != null && building.hasSitterWaiting() && canShootNow(true)) {
             assignment = Assignment.SITTING;
             walkAttempts = 0;
@@ -160,8 +211,8 @@ public class EntityAIWorkPhotographer
                 && canShootNow(false)) {
             final ChronicleJob job = building.nextChronicle();
             final IBuilding about = building.chronicleSubject(job);
-            if (about == null || about.getBuildingLevel() < 1) {
-                building.chronicleDone(job);            // torn down, or not standing yet
+            if (about == null || (about.getBuildingLevel() < 1 && !job.halfway())) {
+                building.chronicleDone(job);            // torn down (a first build is level 0 until done)
                 return next;
             }
             if (!frame(about)) {
@@ -214,8 +265,10 @@ public class EntityAIWorkPhotographer
             return false;
         }
         // Daylight, or a flash: a photographer without either has the sense to wait for morning.
+        // The day ends at 10500 here, before MineColonies starts sending workers to bed at 10600 -
+        // a shoot begun then would be interrupted with the camera half raised.
         final long t = world.getDayTime() % 24000L;
-        final boolean day = t < 12500L || t > 23500L;
+        final boolean day = t < 10500L || t > 23500L;
         return day || ColonyCamera.hasFlash(stock);
     }
 
@@ -238,13 +291,51 @@ public class EntityAIWorkPhotographer
                 }
             }
         }
+        // A colleague may have it out (two photographers from level 4); that is not a shortage.
+        for (final com.minecolonies.api.colony.ICitizenData colleague : building.getAllAssignedCitizen()) {
+            if (colleague.getEntity().isPresent()
+                    && InventoryUtils.findFirstSlotInItemHandlerWith(colleague.getEntity().get().getItemHandlerCitizen(), cameraItem) >= 0) {
+                return ItemStack.EMPTY;
+            }
+        }
         // Not a stall: the request goes out and the bench keeps working meanwhile.
         checkIfRequestForItemExistOrCreateAsync(new ItemStack(cameraItem));
         return ItemStack.EMPTY;
     }
 
-    /** Take the camera out of the rack and into the hand - the real item, fittings and all. */
+    /** The slot of the photographer's own pack the camera is in, or -1. */
+    private int cameraSlot() {
+        final Item cameraItem = itemOrNull(CAMERA);
+        return cameraItem == null ? -1
+                : InventoryUtils.findFirstSlotInItemHandlerWith(worker.getItemHandlerCitizen(), cameraItem);
+    }
+
+    /**
+     * The camera as it sits in the photographer's pack - the live stack, so film loaded into it
+     * stays loaded - or empty. In the pack, not in a field: MineColonies resets a worker's AI for
+     * sleep, rain and raids without asking, and a camera that existed only in a field and the hand
+     * would be gone with it.
+     */
+    private ItemStack cameraCarried() {
+        final int slot = cameraSlot();
+        camera = slot < 0 ? ItemStack.EMPTY : worker.getInventoryCitizen().getStackInSlot(slot);
+        return camera;
+    }
+
+    /** Show the camera in the hand. */
+    private void holdCamera() {
+        final int slot = cameraSlot();
+        if (slot >= 0) {
+            worker.getInventoryCitizen().setHeldItem(InteractionHand.MAIN_HAND, slot);
+            worker.setItemSlot(EquipmentSlot.MAINHAND, worker.getInventoryCitizen().getStackInSlot(slot));
+        }
+    }
+
+    /** Take the camera off the rack and into the pack - the real item, fittings and all. */
     private ItemStack takeCamera() {
+        if (!cameraCarried().isEmpty()) {
+            return camera;
+        }
         final Item cameraItem = itemOrNull(CAMERA);
         if (cameraItem == null) {
             return ItemStack.EMPTY;
@@ -253,7 +344,12 @@ public class EntityAIWorkPhotographer
             for (int slot = 0; slot < handler.getSlots(); slot++) {
                 final ItemStack stack = handler.getStackInSlot(slot);
                 if (!stack.isEmpty() && stack.getItem() == cameraItem) {
-                    return handler.extractItem(slot, 1, false);
+                    final ItemStack taken = handler.extractItem(slot, 1, false);
+                    if (!InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), taken)) {
+                        handler.insertItem(slot, taken, false);     // no room in the pack
+                        return ItemStack.EMPTY;
+                    }
+                    return cameraCarried();
                 }
             }
         }
@@ -272,7 +368,11 @@ public class EntityAIWorkPhotographer
         if (ColonyCamera.hasFilm(camera)) {
             final ItemStack full = ColonyCamera.ejectFilm(camera);
             if (!full.isEmpty()) {
-                InventoryUtils.addItemStackToProvider(building, full);
+                if (!InventoryUtils.addItemStackToProvider(building, full)
+                        && !InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), full)) {
+                    ColonyCamera.loadFilm(camera, full);     // nowhere to put it; it stays in the camera
+                    return false;
+                }
                 Voyager.LOGGER.info("[Photo Booth] {} put a full roll of film on the shelf",
                         worker.getCitizenData().getName());
             }
@@ -280,7 +380,7 @@ public class EntityAIWorkPhotographer
         for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
             for (int slot = 0; slot < handler.getSlots(); slot++) {
                 final ItemStack stack = handler.getStackInSlot(slot);
-                if (!stack.isEmpty() && ColonyCamera.isFilm(stack)) {
+                if (!stack.isEmpty() && ColonyCamera.isFilmWithRoom(stack)) {
                     final ItemStack roll = handler.extractItem(slot, 1, false);
                     ColonyCamera.loadFilm(camera, roll);
                     return ColonyCamera.hasFreeFrame(camera);
@@ -428,7 +528,7 @@ public class EntityAIWorkPhotographer
             lastShot = world.getGameTime();
             return giveUp();
         }
-        worker.setItemSlot(EquipmentSlot.MAINHAND, camera);
+        holdCamera();
         worker.setRenderMetadata(JobPhotographer.META_CAMERA);
 
         double fov = 0.0;
@@ -524,7 +624,10 @@ public class EntityAIWorkPhotographer
         if (!(world instanceof ServerLevel level)) {
             return abandon();
         }
-        worker.setItemSlot(EquipmentSlot.MAINHAND, camera);   // MineColonies may have swapped tools
+        if (cameraCarried().isEmpty()) {
+            return abandon();                                   // the camera left the pack somehow
+        }
+        holdCamera();                                           // MineColonies may have swapped tools
         if (!ColonyCamera.renderBand(level, worker, shot, film, rowsDone, ROWS_PER_STEP)) {
             return abandon();
         }
@@ -548,6 +651,7 @@ public class EntityAIWorkPhotographer
         final String id = "voyager_" + building.getColony().getID() + "_"
                 + world.getGameTime() + "_" + worker.getCivilianID();
         final Component title = titleFor(shot);
+        cameraCarried();
         final boolean colour = !ColonyCamera.isBlackAndWhite(camera);
         final ItemStack photograph = ColonyCamera.develop(level, worker, shot, film, id, name, title, camera);
         film = new byte[0];
@@ -661,17 +765,16 @@ public class EntityAIWorkPhotographer
         return AIWorkerState.START_WORKING;
     }
 
-    /** The camera goes back where it came from, film and all; the hand empties. */
+    /** The camera goes back on the shelf, film and all; the hand empties. Stays in the pack if the shelf is full. */
     private void putCameraBack() {
         worker.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
         worker.setRenderMetadata("");
         subject = null;
-        if (!camera.isEmpty()) {
-            if (!InventoryUtils.addItemStackToProvider(building, camera)) {
-                InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), camera);
-            }
-            camera = ItemStack.EMPTY;
+        final int slot = cameraSlot();
+        if (slot >= 0) {
+            InventoryUtils.transferItemStackIntoNextFreeSlotInProvider(worker.getInventoryCitizen(), slot, building);
         }
+        camera = ItemStack.EMPTY;
     }
 
     private static SoundEvent sound(final String path) {

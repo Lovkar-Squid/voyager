@@ -253,8 +253,8 @@ public class BuildingObservatory extends AbstractBuilding {
      */
     public @Nullable BlockPos getLookout(final ServerLevel level) {
         final BlockPos tagged = getFirstLocationFromTag(TAG_LOOKOUT);
-        if (tagged != null) {
-            return tagged;
+        if (tagged != null && colony.isCoordInColony(level, tagged)) {
+            return tagged;                             // a rally point outside the colony is refused by the guards
         }
         final int today = colony.getDay();
         if (lookoutDay != Integer.MIN_VALUE && today - lookoutDay < LOOKOUT_RECHECK_DAYS) {
@@ -349,7 +349,15 @@ public class BuildingObservatory extends AbstractBuilding {
             return 0;
         }
         if (!escortTowers.isEmpty()) {
-            return escortTowers.size();            // already out
+            // Already out - or remembered from before a restart, which MineColonies' guards forget:
+            // any tower that lost its rally point gets it again.
+            for (final BlockPos pos : escortTowers) {
+                final IBuilding tower = colony.getServerBuildingManager().getBuilding(pos);
+                if (tower instanceof IGuardBuilding guard && guard.getRallyLocation() == null) {
+                    guard.setRallyLocation(new StaticLocation(lookout, level.dimension()));
+                }
+            }
+            return escortTowers.size();
         }
         final List<IGuardBuilding> towers = new ArrayList<>();
         for (final IBuilding other : colony.getServerBuildingManager().getBuildings().values()) {

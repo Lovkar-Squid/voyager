@@ -34,10 +34,13 @@ public class JobAstronomer extends AbstractJob<EntityAIWorkAstronomer, JobAstron
     }
 
     private static final String NBT_NIGHT_KEPT = "night_kept";
+    private static final String NBT_NIGHT_CREDITED = "night_credited";
 
     private Status status = Status.IDLE;
     /** The last night this astronomer actually kept the watch, by the world's day count. */
     private long nightKept = -1L;
+    /** The night whose plate is already in the book, so a restart mid-night does not pay twice. */
+    private long nightCredited = -1L;
 
     public JobAstronomer(final ICitizenData citizen) {
         super(citizen);
@@ -98,16 +101,31 @@ public class JobAstronomer extends AbstractJob<EntityAIWorkAstronomer, JobAstron
         return level != null && nightKept == level.getGameTime() / 24000L;
     }
 
+    /** Tonight's plate is taken (the astronomer may still be on the way home). */
+    public void creditedNight(final long night) {
+        nightCredited = night;
+    }
+
+    public boolean creditedTonight(final Level level) {
+        return level != null && nightCredited == level.getGameTime() / 24000L;
+    }
+
+    public long creditedNight() {
+        return nightCredited;
+    }
+
     @Override
     public void deserializeNBT(final @NotNull HolderLookup.Provider provider, final CompoundTag tag) {
         super.deserializeNBT(provider, tag);
         nightKept = tag.contains(NBT_NIGHT_KEPT) ? tag.getLong(NBT_NIGHT_KEPT) : -1L;
+        nightCredited = tag.contains(NBT_NIGHT_CREDITED) ? tag.getLong(NBT_NIGHT_CREDITED) : -1L;
     }
 
     @Override
     public CompoundTag serializeNBT(final @NotNull HolderLookup.Provider provider) {
         final CompoundTag tag = super.serializeNBT(provider);
         tag.putLong(NBT_NIGHT_KEPT, nightKept);
+        tag.putLong(NBT_NIGHT_CREDITED, nightCredited);
         return tag;
     }
 }

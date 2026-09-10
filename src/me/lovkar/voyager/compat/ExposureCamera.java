@@ -201,6 +201,11 @@ public final class ExposureCamera {
         return stack.getItem() instanceof FilmRollItem;
     }
 
+    /** A roll of film with at least one frame left on it - the only kind worth loading. */
+    public static boolean isFilmWithRoom(final ItemStack stack) {
+        return stack.getItem() instanceof FilmRollItem roll && roll.canAddFrame(stack);
+    }
+
     /**
      * Expose the frame onto the roll in the camera: the negative stays on the film, the way it
      * does for a player, so a full roll can go to the darkroom later.
@@ -536,7 +541,7 @@ public final class ExposureCamera {
      */
     private static MapColor[] tones(final Entity entity) {
         final EntityType<?> type = entity.getType();
-        if (entity instanceof Player || entity.getClass().getName().contains("EntityCitizen")
+        if (entity instanceof Player || entity instanceof com.minecolonies.api.entity.citizen.AbstractEntityCitizen
                 || type == EntityType.VILLAGER) {
             return new MapColor[] {MapColor.TERRACOTTA_ORANGE, MapColor.COLOR_BLUE};
         }
