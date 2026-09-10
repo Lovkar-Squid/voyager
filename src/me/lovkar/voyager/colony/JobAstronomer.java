@@ -37,6 +37,8 @@ public class JobAstronomer extends AbstractJob<EntityAIWorkAstronomer, JobAstron
     private static final String NBT_NIGHT_CREDITED = "night_credited";
 
     private Status status = Status.IDLE;
+    /** What they are doing, in a sentence, for anyone who asks (Colonist Errands does). */
+    private String statusLine = "";
     /** The last night this astronomer actually kept the watch, by the world's day count. */
     private long nightKept = -1L;
     /** The night whose plate is already in the book, so a restart mid-night does not pay twice. */
@@ -71,6 +73,21 @@ public class JobAstronomer extends AbstractJob<EntityAIWorkAstronomer, JobAstron
 
     public void setStatus(final Status status) {
         this.status = status;
+    }
+
+    /** The status and, in plain English, what it means tonight - "keeping the watch from the lookout". */
+    public void setStatus(final Status status, final String line) {
+        this.status = status == null ? Status.IDLE : status;
+        this.statusLine = line == null ? "" : line;
+    }
+
+    /**
+     * The last line the AI set for this astronomer, e.g. "keeping the watch at the instrument" or
+     * "caught the Crab Nebula tonight - a first for the colony". English; read by Colonist Errands
+     * through reflection, the way it reads {@link JobVoyager#getStatusLine()}.
+     */
+    public String getStatusLine() {
+        return statusLine;
     }
 
     /** True while the astronomer is standing at the instrument and should not be disturbed. */

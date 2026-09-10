@@ -24,8 +24,41 @@ public class JobPhotographer extends AbstractJobCrafter<EntityAIWorkPhotographer
      */
     public static final String META_CAMERA = "camera";
 
+    /** What the photographer is up to, in one word; {@link #getStatusLine()} has the details. */
+    public enum Status {
+        /** Nothing pressing: minding the studio between pictures. */
+        IDLE,
+        /** At the bench: film, frames, albums, cameras for the colony. */
+        CRAFTING,
+        /** A colonist is sitting for a portrait in the studio. */
+        PORTRAIT,
+        /** A visitor is sitting for a paid portrait. */
+        SITTING,
+        /** Out at a building site, photographing it for the colony chronicle. */
+        CHRONICLE,
+        /** Filing a photograph into the chronicle album. */
+        FILING
+    }
+
+    private Status status = Status.IDLE;
+    private String statusLine = "";
+
     public JobPhotographer(final ICitizenData citizen) {
         super(citizen);
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+
+    /** The last line the AI set, e.g. "photographing Anna in the studio". English; read by Colonist Errands. */
+    public String getStatusLine() {
+        return statusLine;
+    }
+
+    public void setStatus(final Status status, final String line) {
+        this.status = status == null ? Status.IDLE : status;
+        this.statusLine = line == null ? "" : line;
     }
 
     @Override

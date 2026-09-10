@@ -353,6 +353,55 @@ public class BuildingPhotoBooth extends AbstractBuilding {
         return portraitsSold;
     }
 
+    /**
+     * The Photo Booth in one English paragraph, for whoever asks in words - Colonist Errands reads
+     * this through reflection and gives it to the photographer's talking colonist.
+     */
+    public String describeForChat() {
+        final StringBuilder sb = new StringBuilder();
+        final String look = switch (getSchematicName()) {
+            case "keep" -> "stone and spruce under a pitched roof";
+            case "sandcourt" -> "sandstone and cool blue tile";
+            case "station" -> "white quartz and glass";
+            case "array" -> "deepslate and purpur";
+            default -> "pale stone with copper trim";
+        };
+        sb.append("The Photo Booth is a studio built in ").append(look).append(", level ").append(getBuildingLevel())
+                .append(" of 5: a gallery wall, a camera stand in the middle of the floor and a mark where the sitter stands");
+        sb.append(getBuildingLevel() >= 2 ? ", with a darkroom wing where film is developed under a red lamp. " : "; the darkroom comes at level 2. ");
+        if (getBuildingLevel() >= 2) {
+            sb.append("Visitors to the colony can sit for a portrait and pay for it - a black-and-white one costs about ")
+                    .append(coins(portraitPrice(false))).append(", colour about ").append(coins(portraitPrice(true))).append(". ");
+        }
+        if (portraitsSold > 0) {
+            sb.append(portraitsSold).append(portraitsSold == 1 ? " portrait has" : " portraits have").append(" been sold so far, earning the colony about ")
+                    .append(coins(earned)).append(". ");
+        } else {
+            sb.append("No portrait has been sold yet. ");
+        }
+        if (volumes > 0) {
+            sb.append("The colony chronicle - photographs of every building as it goes up - runs to ")
+                    .append(volumes).append(volumes == 1 ? " volume. " : " volumes. ");
+        } else {
+            sb.append("The colony chronicle (photographs of every building as it goes up) has not filled its first album yet. ");
+        }
+        if (hasSitterWaiting()) {
+            sb.append("Somebody is waiting in the studio right now. ");
+        }
+        return sb.toString().trim();
+    }
+
+    /** An amount of colony money in coins, for chat: "1 coin", "about 2 coins", "half a coin". */
+    private static String coins(final long amount) {
+        final int coin = Math.max(1, TradePostLedger.coinValue());
+        final double c = amount / (double) coin;
+        if (c < 0.75) {
+            return "half a coin";
+        }
+        final long whole = Math.round(c);
+        return whole + (whole == 1 ? " coin" : " coins");
+    }
+
     public long earned() {
         return earned;
     }

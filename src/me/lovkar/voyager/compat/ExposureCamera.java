@@ -482,16 +482,36 @@ public final class ExposureCamera {
         if (pixels.length != SIZE * SIZE || texture == null || sizePx <= 0) {
             return false;
         }
-        final BufferedImage image = TEXTURES.computeIfAbsent(texture, ExposureCamera::load).orElse(null);
-        if (image == null) {
-            return false;
-        }
-        final int size = Math.min(SIZE, sizePx);
-        final int x0 = (SIZE - size) / 2;
-        final int y0 = (SIZE - size) / 2;
+        final BufferedImage image = catalogue(texture);
+        return image != null && paste(pixels, image, sizePx, SIZE / 2, SIZE / 2, SIZE);
+    }
+
+    /** A catalogue picture out of its mod's jar, cached; null if nobody ships it. */
+    static BufferedImage catalogue(final ResourceLocation texture) {
+        return TEXTURES.computeIfAbsent(texture, ExposureCamera::load).orElse(null);
+    }
+
+    /**
+     * Press a picture into the frame, {@code sizePx} wide, centred on ({@code cx}, {@code cy}),
+     * never below row {@code yMax}. Its transparent and black pixels are left out: they are the
+     * picture's own sky, and the frame has a better one.
+     */
+    static boolean paste(final byte[] pixels, final BufferedImage image, final int sizePx,
+                         final int cx, final int cy, final int yMax) {
+        final int size = Math.max(1, Math.min(SIZE, sizePx));
+        final int x0 = cx - size / 2;
+        final int y0 = cy - size / 2;
         boolean painted = false;
         for (int y = 0; y < size; y++) {
+            final int py = y0 + y;
+            if (py < 0 || py >= Math.min(SIZE, yMax)) {
+                continue;
+            }
             for (int x = 0; x < size; x++) {
+                final int pxx = x0 + x;
+                if (pxx < 0 || pxx >= SIZE) {
+                    continue;
+                }
                 final int sx = Math.min(image.getWidth() - 1, x * image.getWidth() / size);
                 final int sy = Math.min(image.getHeight() - 1, y * image.getHeight() / size);
                 final int argb = image.getRGB(sx, sy);
@@ -505,7 +525,7 @@ public final class ExposureCamera {
                 if (r + g + b < 60) {
                     continue;                           // the picture's own black background is sky
                 }
-                pixels[(y0 + y) * SIZE + x0 + x] = Filters.nearest((r << 16) | (g << 8) | b);
+                pixels[py * SIZE + pxx] = Filters.nearest((r << 16) | (g << 8) | b);
                 painted = true;
             }
         }

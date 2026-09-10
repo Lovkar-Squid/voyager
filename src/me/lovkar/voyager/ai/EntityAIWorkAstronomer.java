@@ -198,35 +198,37 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
             // Dawn, or the night is in the book: the camera goes back on the shelf first. If the
             // shelf is full it stays in the pack and the darkroom is not held up for it.
             lastReturnAttempt = world.getGameTime();
-            job.setStatus(JobAstronomer.Status.WALKING);
+            job.setStatus(JobAstronomer.Status.WALKING, "bringing the colony's camera back to the shelf");
             return Watch.FILE_PLATE;
         }
         if (!isNight()) {
             // Daylight is the darkroom's shift: no plate develops itself, and an astronomer with
             // nothing to develop has genuinely nothing to do until dusk.
             if (exposedPlateSlot() >= 0) {
-                job.setStatus(JobAstronomer.Status.WALKING);
+                job.setStatus(JobAstronomer.Status.WALKING, "taking last night's plate down to the darkroom to develop it");
                 walkAttempts = 0;
                 return Watch.WALK_TO_DARKROOM;
             }
-            job.setStatus(JobAstronomer.Status.IDLE);
+            job.setStatus(JobAstronomer.Status.IDLE, "off duty by day - the watch is kept at night, when the town sleeps");
             walkToBuilding();
             return AIWorkerState.START_WORKING;
         }
         if (world.isRaining() || world.isThundering()) {
-            job.setStatus(JobAstronomer.Status.CLOUDED);
+            job.setStatus(JobAstronomer.Status.CLOUDED, "clouded out - rain over the instrument, no watch tonight");
             walkToBuilding();
             return AIWorkerState.START_WORKING;
         }
         if (world.getGameTime() / 24000L == lastNight) {
-            job.setStatus(JobAstronomer.Status.IDLE);          // this night is already in the book
+            job.setStatus(JobAstronomer.Status.IDLE, tonightsLine("tonight's plate is already taken"));   // in the book
             walkToBuilding();
             return AIWorkerState.START_WORKING;
         }
         watched = 0;
         walkAttempts = 0;
         chooseTheWatch();
-        job.setStatus(JobAstronomer.Status.WALKING);
+        job.setStatus(JobAstronomer.Status.WALKING, atLookout
+                ? "walking out to the lookout on the hill with the colony's camera" + (building.escortOut() ? " and a guard escort" : "")
+                : "walking to the instrument for tonight's watch");
         return Watch.WALK_TO_SCOPE;
     }
 
@@ -462,7 +464,9 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
             holdCamera();                                          // carried up the hill in hand
         }
         if (walkToSafePos(watchPos)) {
-            job.setStatus(JobAstronomer.Status.OBSERVING);
+            job.setStatus(JobAstronomer.Status.OBSERVING, atLookout
+                    ? "keeping the watch from the lookout under the open sky, camera in hand"
+                    : "keeping the watch at the instrument, looking up");
             return Watch.OBSERVE;
         }
         if (++walkAttempts > (atLookout ? WALK_ATTEMPTS * 2 : WALK_ATTEMPTS)) {
@@ -476,7 +480,7 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
                 walkAttempts = 0;
                 return Watch.WALK_TO_SCOPE;
             }
-            job.setStatus(JobAstronomer.Status.BLOCKED);
+            job.setStatus(JobAstronomer.Status.BLOCKED, "cannot get to the instrument - something is in the way");
             Voyager.LOGGER.info("[Observatory] {} cannot reach the instrument at {}",
                     worker.getCitizenData().getName(), watchPos);
             return AIWorkerState.START_WORKING;
@@ -496,7 +500,7 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
             return Watch.WALK_TO_SCOPE;                        // pushed away; walk back
         }
         if (!isNight()) {
-            job.setStatus(JobAstronomer.Status.IDLE);
+            job.setStatus(JobAstronomer.Status.IDLE, "dawn caught them on the watch - heading home");
             building.releaseEscort();
             return camera.isEmpty() ? AIWorkerState.START_WORKING : Watch.FILE_PLATE;   // dawn caught them mid-watch
         }
@@ -671,6 +675,9 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         final SkyObject.LensTier lens = atLookout ? lensAtTheLookout() : lensFitted();
         final SkyObject caught = SkyRoll.tonightsCatch(world, lens, worker.getCivilianID());
         caughtTonight = caught;
+        job.setStatus(JobAstronomer.Status.OBSERVING, tonightsLine(atLookout
+                ? "photographing the night sky from the lookout"
+                : "tonight's plate is taken, filing it"));
         final ItemStack plate = new ItemStack(Voyager.EXPOSED_PLATE.get());
         if (caught != null) {
             SkyRoll.Band band = SkyRoll.bandOf(caught, SkyRoll.isExclusiveTonight(world, caught));
@@ -786,7 +793,7 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         }
         if (++walkAttempts > WALK_ATTEMPTS) {
             // No darkroom yet (level 1 has none) - the plates keep until there is one.
-            job.setStatus(JobAstronomer.Status.IDLE);
+            job.setStatus(JobAstronomer.Status.IDLE, "holding on to an exposed plate - the Observatory has no darkroom yet");
             return AIWorkerState.START_WORKING;
         }
         return Watch.WALK_TO_DARKROOM;
@@ -799,9 +806,10 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
     private IAIState develop() {
         final int slot = exposedPlateSlot();
         if (slot < 0) {
-            job.setStatus(JobAstronomer.Status.IDLE);
+            job.setStatus(JobAstronomer.Status.IDLE, "the plates are developed - putting the prints on the shelf");
             return Watch.FILE_PLATE;
         }
+        job.setStatus(JobAstronomer.Status.WALKING, "in the darkroom, developing last night's plate under the red lamp");
         // Darkroom Discipline is a steadier hand, not a faster one: it gets a second plate through
         // in the same step rather than shortening the step, which is the same saving and reads
         // better than a number ticking down.
@@ -961,7 +969,8 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
             return;
         }
         final ItemStack print = SkyPhotograph.print(SkyData.byId(object),
-                worker.getCitizenData().getName());
+                worker.getCitizenData().getName(),
+                object.hashCode() * 31L + world.getDayTime() / 24000L);   // this object, this night
         if (print.isEmpty()) {
             return;
         }
@@ -970,6 +979,19 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         }
         Voyager.LOGGER.info("[Observatory] {} printed a photograph of {}",
                 worker.getCitizenData().getName(), object);
+    }
+
+    /**
+     * The status line with tonight's catch on it, for Colonist Errands: "keeping the watch ...;
+     * caught the Crab Nebula tonight" - or "nothing this lens could resolve".
+     */
+    private String tonightsLine(final String doing) {
+        if (caughtTonight == null) {
+            return doing + "; nothing tonight's lens could resolve - a blank plate, and a case for a better lens";
+        }
+        final String name = Component.translatable(caughtTonight.nameKey()).getString();
+        final boolean first = !SkyCatalogue.known(building.getColony(), caughtTonight.id());
+        return doing + "; caught " + name + " tonight" + (first ? " - a first for the colony" : "");
     }
 
     /** An object's name for chat: its own key if the datapack is here, its id if it is not. */

@@ -27,9 +27,10 @@ import net.minecraft.world.item.ItemStack;
  *
  * <p>Every cosmic object in Exposure: Space ships its own {@code catalog_texture}. So when the
  * Observatory's darkroom develops a plate of the Crab Nebula, it can print a genuine Exposure
- * photograph pointing at Exposure: Space's own picture of the Crab Nebula: framable, album-able,
- * projectable, and correct. The colony is not faking a render - it is printing the picture the
- * object's own datapack ships, which is exactly what a plate of it should look like.</p>
+ * photograph of it: since alpha.20 a drawn night sky with that picture pressed into it
+ * ({@link SkyPrint} - the bare catalogue picture on white paper was "a bit boring"), and if that
+ * cannot be made, a photograph pointing straight at the catalogue picture, the way Exposure
+ * projects images that were never photographed. Framable, album-able, projectable, and correct.</p>
  *
  * <p><b>This is the one class in the mod that touches Exposure's code</b>, and it is deliberately
  * the only one. Exposure is an optional dependency, so nothing may reference this class except
@@ -46,9 +47,14 @@ public final class ExposurePhotographs {
      * Print the colony's photograph of a cosmic object, or an empty stack if there is nothing to
      * point the picture at.
      */
-    public static ItemStack print(final SkyObject object, final String photographer) {
+    public static ItemStack print(final SkyObject object, final String photographer, final long seed) {
         if (object == null || object.catalogTexture() == null || object.catalogTexture().isEmpty()) {
             return ItemStack.EMPTY;
+        }
+        // The drawn sky first (SkyPrint); the bare catalogue picture only if that cannot be made.
+        final ItemStack sky = SkyPrint.print(object, photographer, seed);
+        if (!sky.isEmpty()) {
+            return sky;
         }
         final ResourceLocation texture = ResourceLocation.tryParse(object.catalogTexture());
         if (texture == null) {

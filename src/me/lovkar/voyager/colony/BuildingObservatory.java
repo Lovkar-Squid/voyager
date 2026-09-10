@@ -18,6 +18,9 @@ import com.minecolonies.core.colony.requestsystem.locations.StaticLocation;
 import me.lovkar.voyager.Voyager;
 import me.lovkar.voyager.ai.EntityAIWorkAstronomer;
 import me.lovkar.voyager.sky.SkyCatalogue;
+import me.lovkar.voyager.sky.SkyObject;
+import me.lovkar.voyager.sky.SkyData;
+import me.lovkar.voyager.sky.SkyEvent;
 import me.lovkar.voyager.sky.SkyRoll;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -25,6 +28,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
@@ -154,6 +158,64 @@ public class BuildingObservatory extends AbstractBuilding {
 
     public int getNights() {
         return nights;
+    }
+
+    /**
+     * The Observatory in one English paragraph, for whoever asks in words - Colonist Errands reads
+     * this through reflection and gives it to the astronomer's talking colonist: which look, what
+     * level, what lens, how many nights kept, what is in the colony's book and what came in last.
+     */
+    public String describeForChat() {
+        final StringBuilder sb = new StringBuilder();
+        final String look = switch (getSchematicName()) {
+            case "keep" -> "Stargazer's Keep - a stone hall with a round tower and an armillary sphere in the yard";
+            case "sandcourt" -> "the Sand Court - an open desert court around a great stone gnomon";
+            case "station" -> "Skyward Station - a white dome on a quartz block, with a radio dish";
+            case "array" -> "the Aperture Array - a great open ring on two pylons, on a dark seamed block";
+            default -> "the Copper Dome - pale stone under a verdigris dome, with a refractor telescope";
+        };
+        sb.append("The Observatory is built as ").append(look).append(", level ").append(getBuildingLevel())
+                .append(" of 5. ");
+        final String[] lenses = {"a bad lens (only the brightest objects)", "a normal lens", "a good lens",
+                "an excellent lens", "a sculk lens (the best there is)"};
+        sb.append("Its telescope reaches ").append(lenses[Math.max(0, Math.min(4, lensTier()))]).append(". ");
+        if (nights > 0) {
+            sb.append("The watch has been kept ").append(nights).append(nights == 1 ? " night" : " nights")
+                    .append(" and ").append(plates).append(plates == 1 ? " plate" : " plates").append(" exposed. ");
+        } else {
+            sb.append("No night has been kept here yet. ");
+        }
+        final java.util.Map<ResourceLocation, SkyCatalogue.Entry> book = SkyCatalogue.of(colony);
+        if (book.isEmpty()) {
+            sb.append("The colony's sky book is still empty - nothing has been catalogued. ");
+        } else {
+            SkyCatalogue.Entry latest = null;
+            for (final SkyCatalogue.Entry entry : book.values()) {
+                if (latest == null || entry.lastNight() > latest.lastNight()) {
+                    latest = entry;
+                }
+            }
+            sb.append("The colony's sky book holds ").append(book.size()).append(book.size() == 1 ? " object" : " objects");
+            if (latest != null) {
+                final SkyObject known = SkyData.byId(latest.id());
+                final String name = known != null ? Component.translatable(known.nameKey()).getString()
+                        : latest.id().getPath().replace('_', ' ');
+                final long ago = colony.getWorld() == null ? -1 : colony.getWorld().getGameTime() / 24000L - latest.lastNight();
+                sb.append("; the latest entry is ").append(name)
+                        .append(ago < 0 ? "" : ago == 0 ? ", caught tonight" : ago == 1 ? ", caught last night" : ", caught " + ago + " nights ago")
+                        .append(latest.plates() > 1 ? " (" + latest.plates() + " plates of it)" : "");
+            }
+            sb.append(". ");
+        }
+        if (colony.getWorld() != null) {
+            final SkyEvent tonight = SkyData.tonight(colony.getWorld());
+            if (tonight != null && tonight.nameKey() != null) {
+                sb.append("Tonight's sky: ").append(Component.translatable(tonight.nameKey()).getString()).append(". ");
+            }
+        }
+        sb.append(lookoutWanted() ? "When the land offers a hill, the watch is kept from a lookout out in the open, with the colony's camera"
+                + (escortWanted() > 0 ? " and a guard escort" : "") + ". " : "The watch is kept at the instrument. ");
+        return sb.toString().trim();
     }
 
     public int getPlates() {

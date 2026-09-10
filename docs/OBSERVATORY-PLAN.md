@@ -1337,3 +1337,22 @@ redrawn from one plan and every one of them is now checked by a machine before i
   shipped from a clean checkout; `gen_observatory_research.py` removes them and they are gone.
 - Not changed: the AI, the tags it walks to (`darkroom`, `scope`, `studio`, `sitter`,
   `photographer`), the Departure Point.
+
+## 21. Phase 5d — the darkroom's print shows the sky, and the two professions can talk about their work (10 Sep 2026, `alpha.20`)
+
+- **The print from a plate is a photograph of the night** (`compat/SkyPrint.java`). It used to point
+  at Exposure: Space's catalogue picture, which has a transparent ground - so it hung on the wall as
+  an icon on white paper ("a bit boring because you can't see the night sky"). Now it is drawn in
+  Minecraft's map colours like the lookout photograph: a sky black at the zenith and blue below, a
+  scatter of stars with a few bright enough to cross, a band of haze, a glow round the object, the
+  object as big as a telescope makes it, and along the bottom the hills, a few spruces and the
+  Observatory's own dome with a lamp lit in it. The catalogue picture is the fallback if the
+  drawing cannot be made. `compose()` is pure and can be looked at outside the game.
+- **Status lines for Colonist Errands.** `JobAstronomer.getStatusLine()` and the new
+  `JobPhotographer.Status`/`getStatusLine()` say in a sentence what the colonist is doing
+  ("keeping the watch from the lookout under the open sky, camera in hand; caught the Crab Nebula
+  tonight - a first for the colony", "camera up in the studio, photographing Anna"), and
+  `BuildingObservatory.describeForChat()` / `BuildingPhotoBooth.describeForChat()` put the building
+  into one English paragraph (look, level, lens, nights kept, the sky book, tonight's event; portraits
+  sold, prices, the chronicle's volumes). Read by Colonist Errands 2.2.0 through reflection, the
+  way it reads the Voyager's status, so a Voyager without Errands loses nothing.

@@ -201,12 +201,20 @@ public class EntityAIWorkPhotographer
         if (building != null && building.hasSitterWaiting() && canShootNow(true)) {
             assignment = Assignment.SITTING;
             walkAttempts = 0;
+            final IVisitorData waiting = building.sitterData();
+            job.setStatus(JobPhotographer.Status.SITTING, "a visitor" + (waiting == null ? "" : ", " + waiting.getName() + ",")
+                    + " is waiting in the studio for a paid portrait - going to take it");
             return Shoot.WALK_TO_STUDIO;
         }
         final IAIState next = super.decide();
         if (next != AIWorkerState.IDLE || building == null) {
+            if (next != AIWorkerState.IDLE) {
+                job.setStatus(JobPhotographer.Status.CRAFTING,
+                        "at the bench, crafting orders for the colony - film, frames, albums, cameras");
+            }
             return next;
         }
+        job.setStatus(JobPhotographer.Status.IDLE, "minding the studio between pictures, the camera on its shelf");
         if (building.hasChronicleWork() && world.getGameTime() - lastChronicle >= BETWEEN_CHRONICLE
                 && canShootNow(false)) {
             final ChronicleJob job = building.nextChronicle();
@@ -224,11 +232,15 @@ public class EntityAIWorkPhotographer
             assignment = Assignment.CHRONICLE;
             chronicleJob = job;
             walkAttempts = 0;
+            this.job.setStatus(JobPhotographer.Status.CHRONICLE, "walking out to photograph "
+                    + Component.translatable(about.getBuildingDisplayName()).getString()
+                    + (job.halfway() ? " half-built" : " newly finished") + " for the colony chronicle");
             return Shoot.WALK_TO_VIEWPOINT;
         }
         if (wantsToShoot()) {
             assignment = Assignment.PORTRAIT;
             walkAttempts = 0;
+            job.setStatus(JobPhotographer.Status.PORTRAIT, "going to the studio to take a colonist's portrait");
             return Shoot.WALK_TO_STUDIO;
         }
         return next;
@@ -553,6 +565,8 @@ public class EntityAIWorkPhotographer
         }
         if (subject != null) {
             face(subject.getEyePosition().subtract(0.0, 0.2, 0.0));
+            job.setStatus(assignment == Assignment.SITTING ? JobPhotographer.Status.SITTING : JobPhotographer.Status.PORTRAIT,
+                    "camera up in the studio, photographing " + subject.getName().getString());
         } else if (assignment == Assignment.CHRONICLE && viewTarget != null) {
             face(viewTarget);
         }
@@ -651,6 +665,7 @@ public class EntityAIWorkPhotographer
         final String id = "voyager_" + building.getColony().getID() + "_"
                 + world.getGameTime() + "_" + worker.getCivilianID();
         final Component title = titleFor(shot);
+        job.setStatus(JobPhotographer.Status.FILING, "developing the picture and filing it in the album");
         cameraCarried();
         final boolean colour = !ColonyCamera.isBlackAndWhite(camera);
         final ItemStack photograph = ColonyCamera.develop(level, worker, shot, film, id, name, title, camera);

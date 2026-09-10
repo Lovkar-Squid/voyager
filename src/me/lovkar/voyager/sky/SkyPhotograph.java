@@ -30,11 +30,16 @@ public final class SkyPhotograph {
 
     /** The colony's print of what it caught, or nothing at all. */
     public static ItemStack print(final SkyObject object, final String photographer) {
+        return print(object, photographer, object == null ? 0L : object.id().hashCode());
+    }
+
+    /** As above; `seed` is what the drawn sky's stars are seeded by - the object and the night. */
+    public static ItemStack print(final SkyObject object, final String photographer, final long seed) {
         if (!available() || object == null) {
             return ItemStack.EMPTY;
         }
         try {
-            return me.lovkar.voyager.compat.ExposurePhotographs.print(object, photographer);
+            return me.lovkar.voyager.compat.ExposurePhotographs.print(object, photographer, seed);
         } catch (final Throwable exposureChanged) {
             if (!warned) {
                 warned = true;
