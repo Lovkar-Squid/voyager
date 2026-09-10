@@ -1,6 +1,7 @@
 package me.lovkar.voyager.colony;
 
 import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.minecolonies.api.colony.jobs.registry.JobEntry;
 import com.minecolonies.api.entity.citizen.Skill;
@@ -45,6 +46,23 @@ public class WorkAtHomeCraftingModule extends CraftingWorkerBuildingModule {
             }
         }
         return true;
+    }
+
+    /**
+     * A photographer hired before this module existed (alpha.18 and earlier saves) is still a
+     * commuter: they are on the roster but their home is a house in town. Once a colony tick,
+     * anyone on the roster who does not live here yet moves in - so an old save needs no
+     * re-hiring.
+     */
+    @Override
+    public void onColonyTick(final IColony colony) {
+        super.onColonyTick(colony);
+        for (final ICitizenData citizen : getAssignedCitizen()) {
+            final IBuilding home = citizen.getHomeBuilding();
+            if (home == null || !home.getID().equals(building.getID())) {
+                citizen.setHomeBuilding(building);
+            }
+        }
     }
 
     @Override
