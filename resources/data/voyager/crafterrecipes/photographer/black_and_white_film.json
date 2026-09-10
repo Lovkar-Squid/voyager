@@ -3,20 +3,21 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:paper",
+      "id": "minecraft:paper",
       "count": 3
     },
     {
-      "item": "minecraft:iron_nugget",
+      "id": "minecraft:iron_nugget",
       "count": 2
     },
     {
-      "item": "minecraft:black_dye",
+      "id": "minecraft:black_dye",
       "count": 1
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:black_and_white_film",
+    "id": "exposure:black_and_white_film",
     "count": 1
   },
   "min-building-level": 1,

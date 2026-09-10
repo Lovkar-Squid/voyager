@@ -3,24 +3,25 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:copper_ingot",
+      "id": "minecraft:copper_ingot",
       "count": 5
     },
     {
-      "item": "minecraft:redstone",
+      "id": "minecraft:redstone",
       "count": 3
     },
     {
-      "item": "minecraft:tinted_glass",
+      "id": "minecraft:tinted_glass",
       "count": 2
     },
     {
-      "item": "minecraft:oak_planks",
+      "id": "minecraft:oak_planks",
       "count": 4
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:lightroom",
+    "id": "exposure:lightroom",
     "count": 1
   },
   "min-building-level": 3,

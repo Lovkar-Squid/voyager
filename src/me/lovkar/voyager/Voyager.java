@@ -83,6 +83,9 @@ public class Voyager {
     /** The astronomer's own model: a hood, a scarf, a cloak and a satchel of plates. */
     public static final ResourceLocation ASTRONOMER_MODEL_ID =
             ResourceLocation.fromNamespaceAndPath(MODID, "astronomer");
+    /** The photographer's model: a cap, a vest, a strap, and the viewfinder pose. */
+    public static final ResourceLocation PHOTOGRAPHER_MODEL_ID =
+            ResourceLocation.fromNamespaceAndPath(MODID, "photographer");
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(MODID);
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MODID);
@@ -220,7 +223,7 @@ public class Voyager {
         if (FMLEnvironment.dist.isClient()) {
             VoyagerClient.init(modEventBus);
         }
-        LOGGER.info("Voyager 0.3.0-alpha.12 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
+        LOGGER.info("Voyager 0.3.0-alpha.13 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
     }
 
     /**

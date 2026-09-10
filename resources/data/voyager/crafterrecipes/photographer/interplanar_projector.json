@@ -3,24 +3,25 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:ender_eye",
+      "id": "minecraft:ender_eye",
       "count": 2
     },
     {
-      "item": "minecraft:copper_block",
+      "id": "minecraft:copper_block",
       "count": 2
     },
     {
-      "item": "minecraft:tinted_glass",
+      "id": "minecraft:tinted_glass",
       "count": 3
     },
     {
-      "item": "minecraft:redstone_block",
+      "id": "minecraft:redstone_block",
       "count": 1
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:interplanar_projector",
+    "id": "exposure:interplanar_projector",
     "count": 1
   },
   "min-building-level": 5,

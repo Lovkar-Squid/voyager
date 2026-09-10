@@ -27,9 +27,17 @@ public class BuildingPhotoBooth extends AbstractBuilding {
         super(colony, pos);
     }
 
-    /** Which of the five looks was built, taken from the blueprint path. */
+    /** Which of the five looks was built, taken from the blueprint path, like the Observatory. */
     @Override
     public @NotNull String getSchematicName() {
+        final String path = getBlueprintPath();
+        if (path != null) {
+            for (final String look : new String[] {"keep", "sandcourt", "station", "array"}) {
+                if (path.contains(look)) {
+                    return look;
+                }
+            }
+        }
         return "photobooth";
     }
 

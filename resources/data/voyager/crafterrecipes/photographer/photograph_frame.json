@@ -3,16 +3,17 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:stick",
+      "id": "minecraft:stick",
       "count": 4
     },
     {
-      "item": "minecraft:oak_planks",
+      "id": "minecraft:oak_planks",
       "count": 2
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:photograph_frame",
+    "id": "exposure:photograph_frame",
     "count": 2
   },
   "min-building-level": 1,

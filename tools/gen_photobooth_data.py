@@ -78,8 +78,10 @@ def main():
         recipe = {
             "type": "recipe",
             "crafter": CRAFTER,
-            "inputs": [{"item": item, "count": count} for item, count in inputs],
-            "result": {"item": out_id, "count": out_count},
+            # MineColonies' own files spell it "id" - "item" is silently not a recipe
+            "inputs": [{"id": item, "count": count} for item, count in inputs],
+            "intermediate": "minecraft:air",
+            "result": {"id": out_id, "count": out_count},
             "min-building-level": level,
             "max-building-level": 5,
         }
@@ -109,6 +111,8 @@ def main():
         "com.voyager.research.technology.photobooth.subtitle": "Somebody has to develop it",
         "com.voyager.research.effects.blockhutphotobooth.description": "Unlocks the Photo Booth",
         "com.voyager.photo.taken": "%1$s took a photograph",
+        "com.voyager.photo.portrait": "Portrait of %1$s",
+        "com.voyager.photo.view": "%1$s",
         "com.voyager.photo.no_camera": "The Photo Booth has no camera - the photographer has asked for one",
     })
     with open(LANG, "w") as f:

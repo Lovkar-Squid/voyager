@@ -3,20 +3,21 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:book",
+      "id": "minecraft:book",
       "count": 1
     },
     {
-      "item": "minecraft:leather",
+      "id": "minecraft:leather",
       "count": 2
     },
     {
-      "item": "minecraft:paper",
+      "id": "minecraft:paper",
       "count": 3
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:album",
+    "id": "exposure:album",
     "count": 1
   },
   "min-building-level": 2,

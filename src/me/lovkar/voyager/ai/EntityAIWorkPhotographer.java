@@ -19,14 +19,18 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
+import net.neoforged.neoforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * The Photographer at work.
@@ -36,11 +40,13 @@ import org.jetbrains.annotations.NotNull;
  * recipes and its building rather than its state machine.</p>
  *
  * <p>What is here is the part everybody says is impossible: <b>the photographer actually takes
- * photographs.</b> When there is nothing on the bench they pick up the colony's camera, walk into
- * the studio, find something worth pointing it at, hold it up, and expose a picture - drawn ray by
- * ray on the server out of the world's own map colours (see
- * {@link me.lovkar.voyager.compat.ExposureCamera}). It takes a few seconds and you can watch them
- * do it, which is the whole point.</p>
+ * photographs.</b> When there is nothing on the bench they take the colony's camera off the shelf
+ * - the real one, with whatever film, lens, filter and flash the colony fitted to it - load a
+ * fresh roll if it needs one, walk into the studio, find something worth pointing it at, hold it
+ * up, and expose a picture drawn ray by ray on the server out of the world's own map colours (see
+ * {@link me.lovkar.voyager.compat.ExposureCamera}). The negative goes on the roll, the print goes
+ * on the shelf, a full roll goes on the shelf for the darkroom, and the camera goes back where it
+ * was. It takes a few seconds and you can watch them do it.</p>
  */
 public class EntityAIWorkPhotographer
         extends AbstractEntityAICrafting<JobPhotographer, BuildingPhotoBooth> {
@@ -68,17 +74,25 @@ public class EntityAIWorkPhotographer
     private static final long BETWEEN_SHOOTS = 6000L;
     private static final int WALK_ATTEMPTS = 12;
 
+    private static final ResourceLocation CAMERA = ResourceLocation.fromNamespaceAndPath("exposure", "camera");
+    private static final ResourceLocation FILM = ResourceLocation.fromNamespaceAndPath("exposure", "black_and_white_film");
+
     private byte[] film = new byte[0];
+    private Object shot;
     private int rowsDone;
     private long lastShot = -BETWEEN_SHOOTS;
+    /** Game time before which the racks are not counted again for a camera. */
+    private long nextStockCheck = 0L;
+    /** How often the shelf is checked for a camera while idle: five seconds, not every tick. */
+    private static final long STOCK_CHECK_EVERY = 100L;
     private int walkAttempts;
+    /** The colony's camera while the photographer has it out of the rack. */
     private ItemStack camera = ItemStack.EMPTY;
+    private LivingEntity subject;
 
     public EntityAIWorkPhotographer(final @NotNull JobPhotographer job) {
         super(job);
         super.registerTargets(
-                new AITarget<IAIState>(AIWorkerState.IDLE, this::wantsToShoot,
-                        () -> Shoot.WALK_TO_STUDIO, 60),
                 new AITarget<IAIState>(Shoot.WALK_TO_STUDIO, this::goToStudio, TICK_DELAY),
                 new AITarget<IAIState>(Shoot.AIM, this::aim, TICK_DELAY),
                 new AITarget<IAIState>(Shoot.EXPOSE, this::expose, TICK_DELAY),
@@ -90,35 +104,115 @@ public class EntityAIWorkPhotographer
         return BuildingPhotoBooth.class;
     }
 
+    /**
+     * The bench first. Only when the crafting AI has nothing to do does the photographer reach
+     * for the camera - a request for film outranks a picture of a cow.
+     */
+    @Override
+    protected IAIState decide() {
+        final IAIState next = super.decide();
+        if (next == AIWorkerState.IDLE && wantsToShoot()) {
+            walkAttempts = 0;
+            return Shoot.WALK_TO_STUDIO;
+        }
+        return next;
+    }
+
     // ------------------------------------------------------------------ the shoot
 
-    /** Idle hands, a camera on the shelf, daylight, and long enough since the last one. */
+    /** Idle hands, a camera on the shelf, light to shoot by, and long enough since the last one. */
     private boolean wantsToShoot() {
         if (building == null || building.getBuildingLevel() < 1 || !ColonyCamera.available()) {
             return false;
         }
-        if (world.getGameTime() - lastShot < BETWEEN_SHOOTS) {
+        final long now = world.getGameTime();
+        if (now - lastShot < BETWEEN_SHOOTS || now < nextStockCheck) {
             return false;
         }
-        return !cameraFromStock().isEmpty();
+        nextStockCheck = now + STOCK_CHECK_EVERY;
+        final ItemStack stock = cameraInStock();
+        if (stock.isEmpty()) {
+            return false;
+        }
+        // Daylight, or a flash: a photographer without either has the sense to wait for morning.
+        final long t = world.getDayTime() % 24000L;
+        final boolean day = t < 12500L || t > 23500L;
+        return day || ColonyCamera.hasFlash(stock);
     }
 
-    /** The colony's camera, if it has one. The photographer crafts it themselves if it has not. */
-    private ItemStack cameraFromStock() {
-        final Item cameraItem = BuiltInRegistries.ITEM.get(
-                ResourceLocation.fromNamespaceAndPath("exposure", "camera"));
+    /** The registered item, or null - the registry hands back air for a missing key, never null. */
+    private static @Nullable Item itemOrNull(final ResourceLocation id) {
+        return BuiltInRegistries.ITEM.getOptional(id).orElse(null);
+    }
+
+    /** The colony's camera as it sits on the shelf (not removed). Puts in a request if there is none. */
+    private ItemStack cameraInStock() {
+        final Item cameraItem = itemOrNull(CAMERA);
         if (cameraItem == null) {
             return ItemStack.EMPTY;
         }
-        final ItemStack want = new ItemStack(cameraItem);
-        final int have = InventoryUtils.getItemCountInProvider(building,
-                stack -> stack.getItem() == cameraItem);
-        if (have <= 0) {
-            // Not a stall: the request goes out and the bench keeps working meanwhile.
-            checkIfRequestForItemExistOrCreateAsync(want);
+        for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                final ItemStack stack = handler.getStackInSlot(slot);
+                if (!stack.isEmpty() && stack.getItem() == cameraItem) {
+                    return stack;
+                }
+            }
+        }
+        // Not a stall: the request goes out and the bench keeps working meanwhile.
+        checkIfRequestForItemExistOrCreateAsync(new ItemStack(cameraItem));
+        return ItemStack.EMPTY;
+    }
+
+    /** Take the camera out of the rack and into the hand - the real item, fittings and all. */
+    private ItemStack takeCamera() {
+        final Item cameraItem = itemOrNull(CAMERA);
+        if (cameraItem == null) {
             return ItemStack.EMPTY;
         }
-        return want;
+        for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                final ItemStack stack = handler.getStackInSlot(slot);
+                if (!stack.isEmpty() && stack.getItem() == cameraItem) {
+                    return handler.extractItem(slot, 1, false);
+                }
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /**
+     * Make sure there is film in the camera with room on it. A full roll comes out and goes on the
+     * shelf for the darkroom; a fresh roll comes off the shelf and goes in; no roll at all and the
+     * photographer asks for one and puts the camera back.
+     */
+    private boolean loadFilmIfNeeded() {
+        if (ColonyCamera.hasFreeFrame(camera)) {
+            return true;
+        }
+        if (ColonyCamera.hasFilm(camera)) {
+            final ItemStack full = ColonyCamera.ejectFilm(camera);
+            if (!full.isEmpty()) {
+                InventoryUtils.addItemStackToProvider(building, full);
+                Voyager.LOGGER.info("[Photo Booth] {} put a full roll of film on the shelf",
+                        worker.getCitizenData().getName());
+            }
+        }
+        for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                final ItemStack stack = handler.getStackInSlot(slot);
+                if (!stack.isEmpty() && ColonyCamera.isFilm(stack)) {
+                    final ItemStack roll = handler.extractItem(slot, 1, false);
+                    ColonyCamera.loadFilm(camera, roll);
+                    return ColonyCamera.hasFreeFrame(camera);
+                }
+            }
+        }
+        final Item filmItem = itemOrNull(FILM);
+        if (filmItem != null) {
+            checkIfRequestForItemExistOrCreateAsync(new ItemStack(filmItem));
+        }
+        return false;
     }
 
     private IAIState goToStudio() {
@@ -136,35 +230,58 @@ public class EntityAIWorkPhotographer
     }
 
     /**
-     * Find something worth photographing and point the camera at it.
+     * Take the camera out, load it, find something worth photographing and point at it.
      *
      * <p>A citizen if one is near - a portrait is the thing a colony actually wants - and the way
      * the photographer is standing otherwise. The camera goes into the hand here, so it is up and
      * visible for the whole exposure.</p>
      */
     private IAIState aim() {
-        camera = cameraFromStock();
+        camera = takeCamera();
         if (camera.isEmpty()) {
+            lastShot = world.getGameTime();
+            return AIWorkerState.START_WORKING;
+        }
+        if (!loadFilmIfNeeded()) {
+            putCameraBack();
+            lastShot = world.getGameTime();
             return AIWorkerState.START_WORKING;
         }
         worker.setItemSlot(EquipmentSlot.MAINHAND, camera);
-        worker.setRenderMetadata(RENDER_META_WORKING);
+        worker.setRenderMetadata(JobPhotographer.META_CAMERA);
 
-        final LivingEntity subject = nearestSitter();
+        subject = nearestSitter();
         if (subject != null) {
-            worker.getLookControl().setLookAt(subject, 60.0f, 30.0f);
-            worker.lookAt(subject, 60.0f, 30.0f);
+            face(subject);
         }
-        worker.startUsingItem(InteractionHand.MAIN_HAND);   // the arm comes up with the camera
-        worker.swing(InteractionHand.MAIN_HAND);
+        worker.swing(InteractionHand.MAIN_HAND);          // the camera comes up
+        if (world instanceof ServerLevel level) {
+            level.playSound(null, worker.blockPosition(), sound("item.camera.shutter_open"),
+                    SoundSource.NEUTRAL, 0.7f, 1.0f);
+            if (ColonyCamera.hasFlash(camera)) {
+                level.playSound(null, worker.blockPosition(), sound("item.camera.flash"),
+                        SoundSource.NEUTRAL, 0.8f, 1.0f);
+                level.sendParticles(ParticleTypes.FLASH, worker.getX(), worker.getEyeY(), worker.getZ(),
+                        1, 0.0, 0.0, 0.0, 0.0);
+            }
+            shot = ColonyCamera.open(level, worker, camera);
+        }
         film = ColonyCamera.blank();
         rowsDone = 0;
-        if (film.length == 0) {
-            stopHolding();
+        if (film.length == 0 || shot == null) {
+            putCameraBack();
             lastShot = world.getGameTime();
             return AIWorkerState.START_WORKING;
         }
         return Shoot.EXPOSE;
+    }
+
+    /** Turn to the subject, body and head, so the ray through the lens goes where the eyes do. */
+    private void face(final LivingEntity who) {
+        worker.getLookControl().setLookAt(who, 60.0f, 30.0f);
+        worker.lookAt(who, 60.0f, 30.0f);
+        worker.setYRot(worker.getYHeadRot());
+        worker.yBodyRot = worker.getYHeadRot();
     }
 
     /** Any citizen but this one, standing close enough to be the subject. */
@@ -190,13 +307,11 @@ public class EntityAIWorkPhotographer
      */
     private IAIState expose() {
         if (!(world instanceof ServerLevel level)) {
-            stopHolding();
-            return AIWorkerState.START_WORKING;
+            return abandon();
         }
-        if (!ColonyCamera.renderBand(level, worker, film, rowsDone, ROWS_PER_STEP)) {
-            stopHolding();
-            lastShot = world.getGameTime();
-            return AIWorkerState.START_WORKING;
+        worker.setItemSlot(EquipmentSlot.MAINHAND, camera);   // MineColonies may have swapped tools
+        if (!ColonyCamera.renderBand(level, worker, shot, film, rowsDone, ROWS_PER_STEP)) {
+            return abandon();
         }
         rowsDone += ROWS_PER_STEP;
         level.sendParticles(ParticleTypes.END_ROD, worker.getX(), worker.getEyeY(), worker.getZ(),
@@ -204,10 +319,7 @@ public class EntityAIWorkPhotographer
         if (rowsDone < ColonyCamera.size()) {
             return Shoot.EXPOSE;
         }
-        // The shutter. Exposure's own sound, by id, so we borrow nothing but a name.
-        level.playSound(null, worker.blockPosition(),
-                net.minecraft.sounds.SoundEvent.createVariableRangeEvent(
-                        ResourceLocation.fromNamespaceAndPath("exposure", "item.camera.shutter_open")),
+        level.playSound(null, worker.blockPosition(), sound("item.camera.shutter_close"),
                 SoundSource.NEUTRAL, 0.7f, 1.0f);
         return Shoot.FILE_PHOTOGRAPH;
     }
@@ -215,16 +327,17 @@ public class EntityAIWorkPhotographer
     /** Develop it, put it on the shelf, and give the camera back. */
     private IAIState filePhotograph() {
         if (!(world instanceof ServerLevel level)) {
-            stopHolding();
-            return AIWorkerState.START_WORKING;
+            return abandon();
         }
         final String name = worker.getCitizenData().getName();
         final String id = "voyager_" + building.getColony().getID() + "_"
                 + world.getGameTime() + "_" + worker.getCivilianID();
-        final ItemStack photograph = ColonyCamera.develop(level, film, id, name);
+        final ItemStack photograph = ColonyCamera.develop(level, worker, shot, film, id, name,
+                titleFor(shot), camera);
         film = new byte[0];
+        shot = null;
         lastShot = world.getGameTime();
-        stopHolding();
+        putCameraBack();
         if (photograph.isEmpty()) {
             return AIWorkerState.START_WORKING;
         }
@@ -239,10 +352,38 @@ public class EntityAIWorkPhotographer
         return AIWorkerState.START_WORKING;
     }
 
-    private void stopHolding() {
-        worker.stopUsingItem();
+    /** "Portrait of X" if somebody is in it, otherwise a view of the colony. */
+    private Component titleFor(final Object finished) {
+        for (final Entity seen : ColonyCamera.inFrame(finished)) {
+            if (seen instanceof EntityCitizen citizen && citizen.getCitizenData() != null) {
+                return Component.translatable("com.voyager.photo.portrait", citizen.getCitizenData().getName());
+            }
+        }
+        return Component.translatable("com.voyager.photo.view", building.getColony().getName());
+    }
+
+    private IAIState abandon() {
+        film = new byte[0];
+        shot = null;
+        lastShot = world.getGameTime();
+        putCameraBack();
+        return AIWorkerState.START_WORKING;
+    }
+
+    /** The camera goes back where it came from, film and all; the hand empties. */
+    private void putCameraBack() {
         worker.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
         worker.setRenderMetadata("");
-        camera = ItemStack.EMPTY;
+        subject = null;
+        if (!camera.isEmpty()) {
+            if (!InventoryUtils.addItemStackToProvider(building, camera)) {
+                InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), camera);
+            }
+            camera = ItemStack.EMPTY;
+        }
+    }
+
+    private static SoundEvent sound(final String path) {
+        return SoundEvent.createVariableRangeEvent(ResourceLocation.fromNamespaceAndPath("exposure", path));
     }
 }

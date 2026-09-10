@@ -17,6 +17,9 @@ public final class VoyagerClient {
     public static final ModelLayerLocation ASTRONOMER_LAYER =
             new ModelLayerLocation(ResourceLocation.fromNamespaceAndPath(Voyager.MODID, "astronomer"), "main");
 
+    public static final ModelLayerLocation PHOTOGRAPHER_LAYER =
+            new ModelLayerLocation(ResourceLocation.fromNamespaceAndPath(Voyager.MODID, "photographer"), "main");
+
     private VoyagerClient() {
     }
 
@@ -28,6 +31,7 @@ public final class VoyagerClient {
     private static void registerLayers(final EntityRenderersEvent.RegisterLayerDefinitions event) {
         event.registerLayerDefinition(VOYAGER_LAYER, VoyagerModel::createMesh);
         event.registerLayerDefinition(ASTRONOMER_LAYER, AstronomerModel::createMesh);
+        event.registerLayerDefinition(PHOTOGRAPHER_LAYER, PhotographerModel::createMesh);
     }
 
     /**
@@ -41,6 +45,9 @@ public final class VoyagerClient {
         IModelTypeRegistry.getInstance().register(new SimpleModelType(Voyager.ASTRONOMER_MODEL_ID, 1,
                 new AstronomerModel(event.getEntityModels().bakeLayer(ASTRONOMER_LAYER)),
                 new AstronomerModel(event.getEntityModels().bakeLayer(ASTRONOMER_LAYER))));
-        Voyager.LOGGER.info("Voyager suit and astronomer coat models registered");
+        IModelTypeRegistry.getInstance().register(new SimpleModelType(Voyager.PHOTOGRAPHER_MODEL_ID, 1,
+                new PhotographerModel(event.getEntityModels().bakeLayer(PHOTOGRAPHER_LAYER)),
+                new PhotographerModel(event.getEntityModels().bakeLayer(PHOTOGRAPHER_LAYER))));
+        Voyager.LOGGER.info("Voyager suit, astronomer coat and photographer vest models registered");
     }
 }

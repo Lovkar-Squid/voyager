@@ -3,20 +3,21 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:redstone",
+      "id": "minecraft:redstone",
       "count": 4
     },
     {
-      "item": "minecraft:glowstone",
+      "id": "minecraft:glowstone",
       "count": 1
     },
     {
-      "item": "minecraft:copper_ingot",
+      "id": "minecraft:copper_ingot",
       "count": 2
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:flash",
+    "id": "exposure:flash",
     "count": 1
   },
   "min-building-level": 4,

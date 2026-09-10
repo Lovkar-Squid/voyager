@@ -54,8 +54,8 @@ public final class ExposurePhotographs {
         if (texture == null) {
             return ItemStack.EMPTY;
         }
-        final Item photograph = BuiltInRegistries.ITEM.get(
-                ResourceLocation.fromNamespaceAndPath("exposure", "photograph"));
+        final Item photograph = BuiltInRegistries.ITEM.getOptional(
+                ResourceLocation.fromNamespaceAndPath("exposure", "photograph")).orElse(null);
         if (photograph == null) {
             return ItemStack.EMPTY;
         }
@@ -65,6 +65,10 @@ public final class ExposurePhotographs {
                 Photographer.EMPTY, List.of(), extra);
         final ItemStack stack = new ItemStack(photograph);
         stack.set(Exposure.DataComponents.PHOTOGRAPH_FRAME, frame);
+        // Named for what it shows, in the object's own words - a print of the Crab Nebula should
+        // say so in the inventory, not "Photograph".
+        stack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
+                net.minecraft.network.chat.Component.translatable(object.nameKey()));
         Voyager.LOGGER.debug("[Observatory] printed a photograph of {} for {}", object.id(), photographer);
         return stack;
     }

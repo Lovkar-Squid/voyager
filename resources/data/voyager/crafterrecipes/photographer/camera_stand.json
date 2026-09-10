@@ -3,16 +3,17 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:copper_ingot",
+      "id": "minecraft:copper_ingot",
       "count": 3
     },
     {
-      "item": "minecraft:stick",
+      "id": "minecraft:stick",
       "count": 4
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:camera_stand",
+    "id": "exposure:camera_stand",
     "count": 1
   },
   "min-building-level": 3,

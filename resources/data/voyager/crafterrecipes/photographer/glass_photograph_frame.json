@@ -3,16 +3,17 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:glass_pane",
+      "id": "minecraft:glass_pane",
       "count": 4
     },
     {
-      "item": "minecraft:stick",
+      "id": "minecraft:stick",
       "count": 2
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:glass_photograph_frame",
+    "id": "exposure:glass_photograph_frame",
     "count": 2
   },
   "min-building-level": 2,

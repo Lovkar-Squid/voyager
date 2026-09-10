@@ -3,28 +3,29 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "minecraft:paper",
+      "id": "minecraft:paper",
       "count": 3
     },
     {
-      "item": "minecraft:iron_nugget",
+      "id": "minecraft:iron_nugget",
       "count": 2
     },
     {
-      "item": "minecraft:cyan_dye",
+      "id": "minecraft:cyan_dye",
       "count": 1
     },
     {
-      "item": "minecraft:magenta_dye",
+      "id": "minecraft:magenta_dye",
       "count": 1
     },
     {
-      "item": "minecraft:yellow_dye",
+      "id": "minecraft:yellow_dye",
       "count": 1
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:color_film",
+    "id": "exposure:color_film",
     "count": 1
   },
   "min-building-level": 2,

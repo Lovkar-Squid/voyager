@@ -1037,3 +1037,84 @@ has a camera — which the photographer can, of course, make.
 - **Portraits from a citizen's own skin**: `ExposureData` takes any pixels, so a proper portrait
   composed from the sitter's skin PNG is possible and would beat a raycast for a close-up.
 - The "everyone is tucked in bed" count still has its hard `instanceof AbstractJobGuard`.
+
+## 17. Phase 4b — people in the picture, the camera's fittings, and a photographer you can recognise (10 Sep 2026, `alpha.13`)
+
+Marko has not tested any of the `0.3.0` alphas yet, so this morning's pass was about making the
+first test land well: what would look wrong in the first five minutes, and what would make a
+photograph worth keeping.
+
+### 17.1 What would have broken
+
+- **Recipe JSON.** MineColonies' custom recipes take `"id"` keys (`inputs: [{id, count}]`,
+  `result: {id, count}`), not `"item"`. All twelve photographer recipes were silently invalid.
+- **Registry lookups.** `BuiltInRegistries.ITEM.get(id)` hands back *air* for a missing key, never
+  null, so every `== null` guard around it was dead. They are `getOptional(id).orElse(null)` now.
+- **The shoot never started.** It hung off an `IDLE` `AITarget` that the crafting AI does not
+  reliably pass through. The photographer now overrides `decide()`: the bench first, and only when
+  the crafting AI itself says `IDLE` does the camera come off the shelf.
+- **`startUsingItem` on a camera shows nothing** — the item has no use duration. Replaced by a real
+  arm pose (§17.4).
+
+### 17.2 People in the picture
+
+The raycast in §16.3 only knew about blocks. `ExposureCamera.open()` now freezes the entities in
+front of the lens (within 80 blocks, as `Sitter` boxes — the whole box and the top 28 % as a head)
+and each pixel's ray is clipped against them as well as the world; the nearest hit wins. Entities
+are painted two-tone by type (a villager's robe and face, a cow's hide and head, a citizen's coat),
+so a portrait of a colonist is recognisably a person and not a brown smear. Up to four of them go
+into the frame as `EntityInFrame`, which is what makes Exposure's own tooltip say who is in it. The
+print is named for what it shows: *Portrait of Mira* if someone sat for it, otherwise the place.
+
+### 17.3 Light, time of day, and the fittings on the colony's camera
+
+Every ray is shaded by which face it hit and how far it travelled, then dimmed by the light level
+where it landed (`getMaxLocalRawBrightness`): a dark room comes out dark, unless the camera has a
+**flash** fitted and the subject is within fourteen blocks, or the film is high-sensitivity, which
+lowers the threshold. The sky is painted by the world clock — pale blue by day, orange and violet at
+the golden hour, a dark blue with hashed stars at night, grey in rain.
+
+The photographer uses **the colony's actual camera item**, so whatever the colony fitted to it is
+what the picture gets (`Fittings`, read from the item's data components):
+
+| Fitting | Effect on the picture |
+|---|---|
+| Black-and-white or Game Boy film | greys, and the exposure is typed `BLACK_AND_WHITE` |
+| High-sensitivity film | shoots in lower light |
+| Telescopic lens | narrow field of view, 0.25–0.5 by tier — a real zoom |
+| Panoramic lens | wide field, 1.6 |
+| Exposure: Expanded filters | applied to the developed pixels: flip, desaturate, blur, pencil (Sobel edges), a tint by colour word |
+| Flash, mode ON/AUTO | lights the subject, the frame carries `FLASH` |
+| Shutter speed dial | stops difference from default brightens or darkens |
+| Zoom dial | the field of view, when there is no lens deciding it |
+
+Film is handled the way a photographer would: a full roll is ejected onto the shelf for the
+darkroom, a fresh roll comes off the shelf and goes in (a request goes out if there is none), and
+each exposure is written **onto the roll** (`FilmRollItem.addFrame`) as well as printed — so the
+colony's film actually fills up and the darkroom recipes have something to develop.
+
+### 17.4 A photographer you can recognise
+
+- **Outfit** (`gen_photographer_skin.py`): dark cap, cream shirt, brown vest, a strap across the
+  chest with a brass buckle, dark trousers, boots, and a satchel on the back — eight textures
+  (both genders × the four MineColonies suffixes) plus the citizen icons, 128×64 like the astronomer.
+- **Model** (`client/PhotographerModel`): the cap gets a peak and the back a bag, both drawn from
+  the right half of the 128-wide sheet. When the job's render meta contains `camera` both arms
+  come up to the face and follow the head — the viewfinder pose. The AI sets the meta while it
+  aims and exposes and clears it when the camera goes back, so you can see who is taking a picture
+  from across the colony.
+
+### 17.5 Housekeeping
+
+- `stockTheStudy()` (the Observatory buying its chosen study) runs every fifth decision tick, and
+  the photographer counts the racks for a camera every hundred game ticks instead of every decision.
+- The raycast remains bounded: 96×96 pixels, eight rows a step, one `level.clip` plus the frozen
+  sitter boxes per pixel.
+
+### 17.6 Next (`alpha.14`, promised)
+
+- **The lookout.** The astronomer picks a spot with a clear sky near the Observatory — a blueprint
+  `lookout` tag if there is one, else the highest open block within reach — takes the colony's
+  camera with them, and shoots a real night-sky photograph there for a better plate.
+- **A night escort.** An Observatory setting that names a guard tower; its guard walks out with the
+  astronomer and stands watch until dawn (`setRallyLocation` / guard task settings, to investigate).

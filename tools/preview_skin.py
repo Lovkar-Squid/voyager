@@ -40,11 +40,13 @@ EXTRA = {
                              ((64, 16, 10, 3, 6), 3, 7)],      # scarf
                    "back": [((64, 0, 8, 14, 1), 4, 8),         # cloak
                             ((64, 16, 10, 3, 6), 3, 7)]},
+    "photographer": {"front": [((64, 26, 6, 6, 3), 11, 13)],  # camera bag
+                     "back": []},
     "voyager": {"front": [((64, 16, 6, 4, 1), 5, 10)],         # chest panel
                 "back": [((64, 24, 8, 10, 4), 4, 9),           # life-support pack
                          ((88, 24, 2, 8, 2), 5, 10), ((88, 24, 2, 8, 2), 9, 10)]},
 }
-HAT = {"astronomer": (32, 0, 8, 8, 8), "voyager": (32, 0, 8, 8, 8)}
+HAT = {"astronomer": (32, 0, 8, 8, 8), "voyager": (32, 0, 8, 8, 8), "photographer": (32, 0, 8, 8, 8)}
 
 
 def doll(tex, who, side):

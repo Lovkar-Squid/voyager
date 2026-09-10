@@ -2,7 +2,9 @@ package me.lovkar.voyager.colony;
 
 import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.core.colony.jobs.AbstractJobCrafter;
+import me.lovkar.voyager.Voyager;
 import me.lovkar.voyager.ai.EntityAIWorkPhotographer;
+import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -16,6 +18,12 @@ import org.jetbrains.annotations.NotNull;
  */
 public class JobPhotographer extends AbstractJobCrafter<EntityAIWorkPhotographer, JobPhotographer> {
 
+    /**
+     * Render metadata while the camera is up. Deliberately not "working", which the crafting AI
+     * sets at the bench: the viewfinder pose is for the shoot alone.
+     */
+    public static final String META_CAMERA = "camera";
+
     public JobPhotographer(final ICitizenData citizen) {
         super(citizen);
     }
@@ -23,5 +31,10 @@ public class JobPhotographer extends AbstractJobCrafter<EntityAIWorkPhotographer
     @Override
     public @NotNull EntityAIWorkPhotographer generateAI() {
         return new EntityAIWorkPhotographer(this);
+    }
+
+    @Override
+    public @NotNull ResourceLocation getModel() {
+        return Voyager.PHOTOGRAPHER_MODEL_ID;
     }
 }

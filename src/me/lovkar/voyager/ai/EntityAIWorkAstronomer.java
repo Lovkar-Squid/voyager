@@ -100,6 +100,10 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
     private long lastNight = -1;
     /** Said once: this pack has no cosmic objects, so every plate will be blank. */
     private boolean saidSkyIsEmpty = false;
+    /** Decision ticks left before the shelves are counted again for the chosen study. */
+    private int stockCooldown = 0;
+    /** Shelf checks are measured in nights; every fifth decision tick is plenty. */
+    private static final int STOCK_EVERY = 5;
 
     public EntityAIWorkAstronomer(final @NotNull JobAstronomer job) {
         super(job);
@@ -196,14 +200,18 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
      * courier brings it. Making the player carry a telescopic lens up the hill by hand was exactly
      * the opposite of what a colony is for.</p>
      *
-     * <p>Run once per decision tick, which is often enough for something measured in nights and
-     * rare enough to cost nothing.</p>
+     * <p>Run every few decision ticks (about five seconds), which is often enough for something
+     * measured in nights and rare enough that counting the racks costs nothing.</p>
      */
     private void stockTheStudy() {
         final SkyStudyModule studies = building.getModule(ObservatoryModules.STUDY);
-        if (studies == null || studies.current() != null) {
+        if (studies == null || studies.current() != null || studies.wanted() == null) {
             return;
         }
+        if (--stockCooldown > 0) {
+            return;
+        }
+        stockCooldown = STOCK_EVERY;
         final SkyStudy wanted = SkyStudies.byId(studies.wanted());
         if (wanted == null) {
             studies.forgetWanted();               // it left the datapack while we were shopping

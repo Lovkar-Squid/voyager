@@ -3,16 +3,17 @@
   "crafter": "photographer_crafting",
   "inputs": [
     {
-      "item": "exposure:black_and_white_film",
+      "id": "exposure:black_and_white_film",
       "count": 1
     },
     {
-      "item": "minecraft:glowstone_dust",
+      "id": "minecraft:glowstone_dust",
       "count": 3
     }
   ],
+  "intermediate": "minecraft:air",
   "result": {
-    "item": "exposure:high_sensitivity_black_and_white_film",
+    "id": "exposure:high_sensitivity_black_and_white_film",
     "count": 1
   },
   "min-building-level": 4,
