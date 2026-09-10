@@ -20,7 +20,9 @@ def solid(s, x, y, z):
     if b is None:
         return False
     name = parse_state(b)[0]
-    return not any(w in name for w in ("_door", "chorus", "torch", "lantern", "end_rod", "lightning_rod", "iron_bars", "chain"))
+    if name in ("minecraft:lantern", "minecraft:soul_lantern"):
+        return False                # the hanging kind; a sea lantern is a whole block you stand on
+    return not any(w in name for w in ("_door", "chorus", "torch", "end_rod", "lightning_rod", "iron_bars", "chain"))
 
 
 def standable(s, x, y, z):

@@ -1,0 +1,19 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="GPL-3.0"
+[[mods]]
+modId="voyagertest"
+version="1.0.0"
+displayName="Voyager blueprint test"
+[[dependencies.voyagertest]]
+modId="structurize"
+type="required"
+versionRange="[1.0,)"
+ordering="AFTER"
+side="SERVER"
+[[dependencies.voyagertest]]
+modId="voyager"
+type="required"
+versionRange="*"
+ordering="AFTER"
+side="BOTH"

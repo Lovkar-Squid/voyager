@@ -29,8 +29,7 @@ BOX = ((-11, 0, -12), (11, 25, 12))
 # Observatory does not exist without them; Domum Ornamentum because MineColonies requires it.
 EXTRA_KNOWN = {
     "voyager:blockhutobservatory",
-    "exposure:lightroom", "exposure:photograph_frame_small", "exposure:photograph_frame_medium",
-    "exposure:photograph_frame_large",
+    "exposure:lightroom",
     "exposure_space:analyzer", "exposure_space:night_analyzer",
     "domum_ornamentum:beige_stone_bricks", "domum_ornamentum:cream_stone_bricks",
     "domum_ornamentum:brown_stone_bricks", "domum_ornamentum:brown_bricks",

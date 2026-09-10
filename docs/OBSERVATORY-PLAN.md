@@ -1292,3 +1292,48 @@ before Marko runs any of it. What it caught, all fixed in `alpha.17`:
   directory; visitors were painted grey in their own portraits (`instanceof AbstractEntityCitizen`);
   the escort was not re-rallied after a restart; a blueprint-tagged lookout outside the colony would
   have been refused by the guards; a camera in a colleague's hands was being re-requested.
+
+## 20. Phase 5c — every room reachable, and the photographer moves in (10 Sep 2026, `alpha.18` – `alpha.19`)
+
+Marko's first walk through the buildings found the photographer with "a wall in front of his
+door", rooms with no way into them, and a lightroom that could not print. All fifty blueprints were
+redrawn from one plan and every one of them is now checked by a machine before it is written.
+
+- **The plan** (`tools/observatory.py`, `tools/photobooth.py`): a study/studio with the work row
+  against the north wall, the door in the middle of the south wall and the bed in a corner placed
+  by plan (the search used to drop it outside under the eave, or across the door's inside square);
+  the darkroom as a **wing sharing the study's wall and entered from inside** (it used to stand a
+  block apart with its door opening into the study's outer wall); the dome and the Keep's tower
+  **on the study's flat roof**, reached by a ladder through a hatch, doors facing the hatch (they
+  used to be dropped through the study from the ground and opened south off the eave into the
+  air); instruments off the door approach and the gate; camera stands on a whole block the design
+  owns, never on the kerb or the ground past it.
+- **Light**: Exposure's lightroom refuses to print below light 13 at the block above it. Every
+  lightroom now has a full-strength lamp set into the outer wall beside that square (14), under a
+  tinted-glass ceiling, so a plate develops in the dark.
+- **The judge** (`tools/access.py`): from the ground outside, a two-block-tall citizen walks the
+  design (step up 1, drop 3, doors, ladders) and must be able to stand next to every worked block
+  and on every floor mark; walled-off rooms, doors into walls, bed halves and the light above each
+  lightroom are reported too. `build_observatory.py` and `build_photobooth.py` still refuse floating
+  blocks, unattached ladders and lanterns, unknown block ids and a box overrun.
+- **Proved in a real world** (`tools/pastetest/`, `tools/worldcheck.py`): a throwaway server mod
+  pastes all fifty blueprints through Structurize itself on a headless NeoForge server with
+  MineColonies and Exposure; the world is read back block for block and audited again — 0
+  differences, 155 photograph frames and 50 camera stands placed, block light 14 above all 80
+  lightrooms.
+- **Photograph frames are entities, not blocks.** `exposure:photograph_frame_small/medium/large`
+  exist only as entity models; the first blueprints named them as blocks and Structurize placed
+  air. They are now `exposure:photograph_frame` hanging entities with `Facing`, `Size` and
+  `TileX/Y/Z` (Structurize rotates and re-anchors them itself), so the builder asks for one
+  photograph frame per picture, the way it asks for an item frame.
+- **The photographer lives at the Photo Booth** (`colony/WorkAtHomeCraftingModule.java`): the
+  crafting AI and the request resolvers cast a crafter's module to `CraftingWorkerBuildingModule`,
+  so the Booth could not use MineColonies' `WorkAtHomeBuildingModule` the way the Observatory does.
+  The new module is the crafting one with the two work-at-home steps added: hired here makes the
+  Booth the citizen's home (and frees their bed in town), fired or the building lost makes them
+  homeless again. The bed in the studio is theirs through `BuildingModules.BED`.
+- Leftover University researches for the studies that moved into the Observatory's own book
+  (`apprentice`, `lens_grinding`, `star_party`, …) were still in the repository and would have
+  shipped from a clean checkout; `gen_observatory_research.py` removes them and they are gone.
+- Not changed: the AI, the tags it walks to (`darkroom`, `scope`, `studio`, `sitter`,
+  `photographer`), the Departure Point.

@@ -60,9 +60,14 @@ def one(look, lv, known, pack_dir):
     if len(feet) != 1 or len(heads) != 1:
         print("!! the photographer's bed is not whole:", s.name, feet, heads)
         ok = False
-    if len(s.entities) != 1:
-        print("!! expected exactly one camera stand:", s.name, s.entities)
+    stands = [e for e in s.entities if e[1] == "exposure:camera_stand"]
+    if len(stands) != 1:
+        print("!! expected exactly one camera stand:", s.name, stands)
         ok = False
+    for (fx, fy, fz), eid, _yaw, _pitch, extra in s.entities:
+        if eid == "exposure:photograph_frame" and "TileX" in extra:
+            print("!! frame carries absolute Tile coordinates:", s.name, (fx, fy, fz))
+            ok = False
     # the marks the AI stands on must be free squares with a floor, and the sitter must be in
     # front of the photographer with nothing but the tripod's square between them
     marks = {}
@@ -111,9 +116,7 @@ def main():
     pack_dir = paths.res("blueprints", "voyager", "voyager")
     os.makedirs(os.path.join(pack_dir, FOLDER), exist_ok=True)
     known = bp.vanilla_blocks() | obs_pack.EXTRA_KNOWN | {
-        "voyager:blockhutphotobooth",
-        "exposure:photograph_frame_small", "exposure:photograph_frame_medium",
-        "exposure:photograph_frame_large", "exposure:lightroom"}
+        "voyager:blockhutphotobooth", "exposure:lightroom"}
     ok = True
     for look in pb.LOOKS:
         for lv in range(1, 6):

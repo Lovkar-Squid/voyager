@@ -98,6 +98,12 @@ def entity_tag(x, y, z, entity_id, yaw=0.0, pitch=0.0, extra=None):
         "CanUpdate": T.Byte(1),
     })
     for k, v in (extra or {}).items():
+        if k == "__tile__":
+            # A block-attached entity (a photograph frame, an item frame) also carries the block
+            # it hangs in as TileX/Y/Z, and Minecraft refuses the entity if they disagree with Pos
+            # by more than 16 blocks - so they are the same block, in blueprint coordinates.
+            tag["TileX"], tag["TileY"], tag["TileZ"] = T.Int(x), T.Int(y), T.Int(z)
+            continue
         tag[k] = v
     return tag
 

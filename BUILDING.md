@@ -43,6 +43,11 @@ They resolve paths relative to the repository (`tools/paths.py`), read third-par
 | `gen_skin.py` | the Voyager suit textures and citizen icons (heads come from MineColonies' Nether Miner textures, so this one needs the MineColonies jar) |
 | `gen_astronomer_skin.py` | the astronomer's coat textures and citizen icons (heads come from MineColonies' Student textures) |
 | `preview_skin.py` | flat front/back paper-doll previews of a skin into `tools/out/` - a look-check, not a render |
+| `build_observatory.py`, `build_photobooth.py` | the fifty Observatory / Photo Booth blueprints (five looks, five levels each), from `observatory.py` and `photobooth.py`; the same gates as `build_pack.py` |
+| `access.py` | the accessibility audit of every Observatory and Photo Booth design: a citizen must reach every worked block, every floor mark and the bed, no walled-off rooms, doors with a floor on both sides, light 13+ above every lightroom - prints ALL OK |
+| `check_observatory.py` | block ids, floating blocks, Domum Ornamentum materials and the box, for the Observatory designs |
+| `floorplan.py`, `isorender.py` | ASCII floor plans and a flat isometric preview of a design, for a look without Blender |
+| `pastetest/`, `worldcheck.py` | paste all fifty blueprints through Structurize on a headless server and read the world back (see `pastetest/README.md`) |
 
 `designs.py` describes every level of both looks as voxels, `voxel.py` turns a design into a
 Structurize `.blueprint` (and back, for verification). `build_pack.py` is also the test suite for

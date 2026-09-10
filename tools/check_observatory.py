@@ -21,9 +21,10 @@ known |= {"voyager:blockhutobservatory"}
 # without them the Observatory hut is not registered at all), so its blueprints may use their
 # blocks. Domum Ornamentum is a hard requirement of MineColonies. Listed by hand because their
 # jars are not in libs/.
-known |= {"exposure_space:analyzer", "exposure_space:night_analyzer", "exposure:lightroom",
-          "exposure:photograph_frame_small", "exposure:photograph_frame_medium",
-          "exposure:photograph_frame_large"}
+# The photograph frames on the walls are Exposure's hanging ENTITIES, never blocks: the ids
+# exposure:photograph_frame_* are entity models only, and a blueprint naming them as blocks
+# places air (the first gallery walls were bare).
+known |= {"exposure_space:analyzer", "exposure_space:night_analyzer", "exposure:lightroom"}
 known |= {"domum_ornamentum:beige_stone_bricks", "domum_ornamentum:cream_stone_bricks",
           "domum_ornamentum:brown_stone_bricks", "domum_ornamentum:brown_bricks",
           "domum_ornamentum:sand_stone_bricks", "domum_ornamentum:beige_bricks",
