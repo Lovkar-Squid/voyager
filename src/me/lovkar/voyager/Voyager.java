@@ -202,6 +202,29 @@ public class Voyager {
     private static final ResourceKey<CreativeModeTab> HUTS_TAB =
             ResourceKey.create(Registries.CREATIVE_MODE_TAB, ResourceLocation.fromNamespaceAndPath("minecolonies", "mchuts"));
 
+    /**
+     * The photographer's crafter recipes, as a built-in datapack that exists only when Exposure does.
+     *
+     * <p>Every one of those recipes makes an Exposure item, and MineColonies throws its whole
+     * datapack away over a single unknown item id ("Failed to parse thing: Unknown registry key
+     * exposure:camera" - the world will not load; GEN. WILL's report on 0.3.0, the day it came
+     * out). A {@code neoforge:conditions} block in the files does not help - MineColonies reads
+     * them itself. So the recipes live in their own pack, {@code resourcepacks/exposure} in the
+     * jar, and the pack is only offered to the game when Exposure is loaded; without it the files
+     * are never seen. Always active, so nobody has to enable anything.</p>
+     */
+    private static void addExposurePack(final net.neoforged.neoforge.event.AddPackFindersEvent event) {
+        if (event.getPackType() != net.minecraft.server.packs.PackType.SERVER_DATA
+                || !net.neoforged.fml.ModList.get().isLoaded("exposure")) {
+            return;
+        }
+        event.addPackFinders(ResourceLocation.fromNamespaceAndPath(MODID, "resourcepacks/exposure"),
+                net.minecraft.server.packs.PackType.SERVER_DATA,
+                net.minecraft.network.chat.Component.literal("Voyager - the Photo Booth's recipes (Exposure)"),
+                net.minecraft.server.packs.repository.PackSource.BUILT_IN, true,
+                net.minecraft.server.packs.repository.Pack.Position.TOP);
+    }
+
     public Voyager(IEventBus modEventBus) {
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
@@ -213,6 +236,7 @@ public class Voyager {
         modEventBus.addListener(EventPriority.HIGH, Voyager::registerCapabilities);
         modEventBus.addListener(Voyager::addToCreativeTab);
         modEventBus.addListener(Voyager::registerPayloads);
+        modEventBus.addListener(Voyager::addExposurePack);
         modEventBus.addListener(FMLCommonSetupEvent.class, event -> event.enqueueWork(() -> {
             lendVoiceLines();
             registerInteractions();
@@ -227,7 +251,7 @@ public class Voyager {
         if (FMLEnvironment.dist.isClient()) {
             VoyagerClient.init(modEventBus);
         }
-        LOGGER.info("Voyager 0.3.0 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
+        LOGGER.info("Voyager 0.3.1 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
     }
 
     /**

@@ -41,8 +41,7 @@ RECIPES = [
     ("high_sensitivity_color_film", 4,
      [("exposure:color_film", 1), ("minecraft:glowstone_dust", 3)],
      ("exposure:high_sensitivity_color_film", 1)),
-    ("flash", 4, [("minecraft:redstone", 4), ("minecraft:glowstone", 1), ("minecraft:copper_ingot", 2)],
-     ("exposure:flash", 1)),
+    # no "flash" recipe: exposure:flash is a camera attachment model, not an item (alpha.18 crash)
     ("interplanar_projector", 5, [("minecraft:ender_eye", 2), ("minecraft:copper_block", 2),
                                   ("minecraft:tinted_glass", 3), ("minecraft:redstone_block", 1)],
      ("exposure:interplanar_projector", 1)),
@@ -66,7 +65,13 @@ UNLOCK = {
 
 
 def main():
-    recipes = f"{DATA}/crafterrecipes/photographer"
+    # The recipes are a built-in datapack of their own, offered only when Exposure is loaded
+    # (Voyager.addExposurePack); in the main datapack they would break every world without it.
+    pack = paths.res("resourcepacks", "exposure")
+    os.makedirs(pack, exist_ok=True)
+    with open(os.path.join(pack, "pack.mcmeta"), "w") as f:
+        json.dump({"pack": {"description": "Voyager - the Photo Booth's recipes (needs Exposure)", "pack_format": 48}}, f, indent=2)
+    recipes = os.path.join(pack, "data", "voyager", "crafterrecipes", "photographer")
     os.makedirs(recipes, exist_ok=True)
     for stale in os.listdir(recipes):
         if stale.endswith(".json"):

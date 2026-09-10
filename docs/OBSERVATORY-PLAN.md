@@ -1388,3 +1388,20 @@ redrawn from one plan and every one of them is now checked by a machine before i
   exposures were read out of `data/exposures/` and rendered: the studio, the star field, and the
   night-sky print exactly as the composer draws it. So the answer to "do both really make
   pictures" is yes, on a server with no player in it.
+
+## 23. Hotfix 0.3.1 - the recipes that broke every world without Exposure (10 Sep 2026)
+
+- Reported by GEN. WILL on Discord an hour after 0.3.0 went up: "when i update to the newest voyager
+  it gives me a data pack error". Reproduced headlessly in two minutes: a server with MineColonies +
+  Structurize + Voyager and no Exposure stops with `Failed to parse thing: Unknown registry key
+  exposure:camera` / `Failed to load datapacks`. The alpha.17 lesson again, from the other side: every
+  photographer crafter recipe makes an Exposure item, and MineColonies rejects the whole datapack for
+  one unknown id. `neoforge:conditions` in the files changed nothing - MineColonies reads them itself.
+- Fix: the eleven recipes moved out of `data/` into `resourcepacks/exposure/` inside the jar (own
+  `pack.mcmeta`, format 48), and `Voyager.addExposurePack` offers that pack through
+  `AddPackFindersEvent.addPackFinders(voyager:resourcepacks/exposure, SERVER_DATA, ..., alwaysActive)`
+  only when `ModList.get().isLoaded("exposure")`. The path in the ResourceLocation is relative to the
+  jar root (a bare `exposure` gave "Missing metadata in pack mod/voyager:exposure"). The generator
+  writes there now and no longer knows the `flash` recipe that alpha.18 deleted by hand.
+- Verified: without Exposure the server reaches "Done"; with Exposure the colony test reports "MineColonies
+  knows 11 photographer crafter recipe(s)" and the full photographer/astronomer cycle passes unchanged.

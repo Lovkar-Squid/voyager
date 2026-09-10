@@ -84,6 +84,12 @@ public class ColonyTest {
             }
         }
         LOGGER.info("[colonytest] surface at y={}, chunks forced", y);
+        try {
+            final java.util.Set<?> recipes = com.minecolonies.core.colony.crafting.CustomRecipeManager.getInstance().getRecipes("photographer_crafting");
+            LOGGER.info("[colonytest] MineColonies knows {} photographer crafter recipe(s)", recipes.size());
+        } catch (final Throwable t) {
+            LOGGER.warn("[colonytest] could not count photographer recipes: {}", t.toString());
+        }
         final Player owner = FakePlayerFactory.getMinecraft(level);
         owner.setPos(center.getX() + 0.5, center.getY(), center.getZ() + 0.5);
         colony = IColonyManager.getInstance().createColony(level, center, owner, "Voyager Test", "Medieval Oak");

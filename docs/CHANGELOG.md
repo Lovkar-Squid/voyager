@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1 - 2026-09-10 - hotfix: worlds without Exposure load again
+
+- **Fixed: a world without Exposure would not load with 0.3.0** ("Errors in currently selected data
+  packs prevented the world from loading"; the log says `Failed to parse thing: Unknown registry key
+  ... exposure:camera`). The photographer's eleven crafter recipes all make Exposure items, and
+  MineColonies throws its whole datapack away over one unknown item id. The recipes now live in a
+  built-in datapack inside the jar that is only offered to the game when Exposure is installed, so
+  without Exposure they are never seen - and the Departure Point works exactly as in 0.2.0.
+  Thanks to GEN. WILL for the report, within the hour.
+
 ## 0.3.0 - 2026-09-10 - the Observatory and the Photo Booth (beta)
 
 Two new professions built around Exposure and its Space and Expanded add-ons. Both are optional
