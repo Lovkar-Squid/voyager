@@ -1,0 +1,20 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+[[mods]]
+modId="voyagercolonytest"
+version="1.0.0"
+displayName="Voyager colony test"
+description="Headless colony test for the Observatory and the Photo Booth."
+[[dependencies.voyagercolonytest]]
+modId="voyager"
+type="required"
+versionRange="*"
+ordering="AFTER"
+side="SERVER"
+[[dependencies.voyagercolonytest]]
+modId="minecolonies"
+type="required"
+versionRange="*"
+ordering="AFTER"
+side="SERVER"

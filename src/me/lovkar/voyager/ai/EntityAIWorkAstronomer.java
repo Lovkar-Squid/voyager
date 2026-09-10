@@ -606,6 +606,7 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         shot = null;
         film = new byte[0];
         if (!photograph.isEmpty()) {
+            // Home first: the picture is carried back and hung in the study when the plate is filed.
             if (!InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), photograph)
                     && !InventoryUtils.addItemStackToProvider(building, photograph)) {
                 Voyager.LOGGER.info("[Observatory] no room anywhere for the lookout photograph");
@@ -934,7 +935,7 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         if (paid.isEmpty()) {
             return;
         }
-        Voyager.LOGGER.info("[Observatory] {} paid {} for {} ({}% share)", object, describeReward(paid),
+        Voyager.LOGGER.info("[Observatory] {} paid {} for {} ({}% share)", object, describeReward(paid).getString(),
                 worker.getCitizenData().getName(), (int) Math.round(share * 100));
         MessageUtils.format(Component.translatable("com.voyager.sky.reward",
                         nameOf(object), describeReward(paid)))
@@ -974,11 +975,38 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         if (print.isEmpty()) {
             return;
         }
-        if (!InventoryUtils.addItemStackToProvider(building, print)) {
+        // On the wall of the study first; the shelf only when every frame is full and the shelf is not.
+        final boolean hung = world instanceof ServerLevel level && ColonyCamera.hang(level, building, print);
+        if (!hung && !InventoryUtils.addItemStackToProvider(building, print)) {
             InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), print);
         }
-        Voyager.LOGGER.info("[Observatory] {} printed a photograph of {}",
-                worker.getCitizenData().getName(), object);
+        Voyager.LOGGER.info("[Observatory] {} printed a photograph of {}{}",
+                worker.getCitizenData().getName(), object, hung ? " and hung it in the study" : "");
+    }
+
+    /**
+     * The lookout photograph comes home in the pack; once the astronomer is back in the building
+     * it goes up on the wall like a print - in an empty frame, or over the oldest picture.
+     */
+    private void hangWhatWasCarried() {
+        if (!(world instanceof ServerLevel level)) {
+            return;
+        }
+        final var pack = worker.getInventoryCitizen();
+        for (int slot = 0; slot < pack.getSlots(); slot++) {
+            final ItemStack stack = pack.getStackInSlot(slot);
+            if (stack.isEmpty() || !ColonyCamera.isPhotograph(stack)) {
+                continue;
+            }
+            if (ColonyCamera.hang(level, building, stack)) {
+                pack.extractItem(slot, 1, false);
+                Voyager.LOGGER.info("[Observatory] {} hung the lookout photograph in the study",
+                        worker.getCitizenData().getName());
+            } else {
+                InventoryUtils.transferItemStackIntoNextFreeSlotInProvider(pack, slot, building);
+            }
+            return;
+        }
     }
 
     /**
@@ -1015,21 +1043,22 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         if (lastNight >= 0) {
             job.keptWatch(lastNight);     // home: now the night counts, and bed is allowed
         }
+        hangWhatWasCarried();                            // the lookout photograph, onto the wall
         for (int slot = 0; slot < worker.getInventoryCitizen().getSlots(); slot++) {
             final ItemStack stack = worker.getInventoryCitizen().getStackInSlot(slot);
             if (stack.isEmpty()) {
                 continue;
             }
-            // Developed plates, and the photographs taken from the lookout, go on the shelf.
+            // Developed plates, and any photograph the walls had no room for, go on the shelf.
             final boolean plate = stack.getItem() == Voyager.STAR_PLATE.get();
-            final boolean photograph = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath().equals("photograph")
-                    && BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace().equals("exposure");
-            if (plate || photograph) {
+            if (plate || ColonyCamera.isPhotograph(stack)) {
                 InventoryUtils.transferItemStackIntoNextFreeSlotInProvider(worker.getInventoryCitizen(), slot, building);
             }
         }
         worker.setRenderMetadata("");
-        job.setStatus(JobAstronomer.Status.IDLE);
+        job.setStatus(JobAstronomer.Status.IDLE, isNight()
+                ? tonightsLine("the night's plate is filed - to bed until dusk")
+                : "off duty by day - the watch is kept at night, when the town sleeps");
         return AIWorkerState.START_WORKING;
     }
 

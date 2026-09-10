@@ -215,7 +215,23 @@ public class BuildingObservatory extends AbstractBuilding {
         }
         sb.append(lookoutWanted() ? "When the land offers a hill, the watch is kept from a lookout out in the open, with the colony's camera"
                 + (escortWanted() > 0 ? " and a guard escort" : "") + ". " : "The watch is kept at the instrument. ");
+        sb.append(wallsForChat("on the walls of the study"));
         return sb.toString().trim();
+    }
+
+    /** "Three of the five frames on the walls of the study hold a picture." - or that the walls are still bare. */
+    private String wallsForChat(final String where) {
+        if (!(getColony().getWorld() instanceof net.minecraft.server.level.ServerLevel level)) {
+            return "";
+        }
+        final int[] frames = me.lovkar.voyager.photo.ColonyCamera.frames(level, this);
+        if (frames[0] <= 0) {
+            return "";
+        }
+        if (frames[1] <= 0) {
+            return "The " + frames[0] + " frames " + where + " are still empty. ";
+        }
+        return frames[1] + " of the " + frames[0] + " frames " + where + " hold a picture. ";
     }
 
     public int getPlates() {

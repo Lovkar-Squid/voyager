@@ -89,7 +89,7 @@ Point's console, so the Undertaker can bury - or resurrect - them like any other
 | Long-range Comms | 4 | the Voyager reports to the colony chat while away |
 | Return to Sender | 5 | a lost Voyager's gear comes back to the hut |
 
-## The Observatory and the Photo Booth (0.3.0, in testing)
+## The Observatory and the Photo Booth (0.3.0)
 
 Two more buildings, built around [Exposure](https://www.curseforge.com/minecraft/mc-mods/exposure)
 and its Space and Expanded add-ons. Neither needs the other, and both are optional.
@@ -111,7 +111,11 @@ by ray on the server out of the world's own map colours, with the colonists in f
 the picture, shaded by the light, through whatever film, lens, filter and flash the colony fitted
 to its camera. Every building the builder finishes is photographed for the **colony chronicle**, an
 album on the shelf signed as a volume when it is full; from level 2 **visitors come in for a
-portrait** and, with Trade Post for MineColonies installed, pay for it in coins.
+portrait** and, with Trade Post for MineColonies installed, pay for it in coins. Both huts have
+photograph frames on their walls and both workers hang their pictures in them - an empty frame
+first, then over the oldest picture, whose print goes on the shelf - so the walls always show the
+newest work: the astronomer's night-sky prints and lookout photographs in the study, the
+photographer's portraits on the gallery wall.
 
 ## Requirements
 
@@ -122,7 +126,9 @@ portrait** and, with Trade Post for MineColonies installed, pay for it in coins.
 
 Optional: with [Colonist Errands](https://www.curseforge.com/minecraft/mc-mods/colonist-errands)
 2.1.0+ and Talking Colonists, Voyagers can tell you about their last expedition and chat with
-their crewmate while they wait for the next launch window.
+their crewmate while they wait for the next launch window; with Colonist Errands 2.2.0+ the
+astronomer and the photographer know their work too - what the Observatory has in its sky book,
+what they caught tonight, who sat for a portrait.
 
 ## Installation
 

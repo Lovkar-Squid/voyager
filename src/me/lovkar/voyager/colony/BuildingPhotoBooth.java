@@ -388,7 +388,23 @@ public class BuildingPhotoBooth extends AbstractBuilding {
         if (hasSitterWaiting()) {
             sb.append("Somebody is waiting in the studio right now. ");
         }
+        sb.append(wallsForChat("on the gallery wall"));
         return sb.toString().trim();
+    }
+
+    /** "Three of the five frames on the gallery wall hold a picture." - or that the walls are still bare. */
+    private String wallsForChat(final String where) {
+        if (!(getColony().getWorld() instanceof net.minecraft.server.level.ServerLevel level)) {
+            return "";
+        }
+        final int[] frames = me.lovkar.voyager.photo.ColonyCamera.frames(level, this);
+        if (frames[0] <= 0) {
+            return "";
+        }
+        if (frames[1] <= 0) {
+            return "The " + frames[0] + " frames " + where + " are still empty. ";
+        }
+        return frames[1] + " of the " + frames[0] + " frames " + where + " hold a picture. ";
     }
 
     /** An amount of colony money in coins, for chat: "1 coin", "about 2 coins", "half a coin". */

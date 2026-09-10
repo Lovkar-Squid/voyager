@@ -159,6 +159,7 @@
   "com.voyager.research.technology.photobooth.subtitle": "Somebody has to develop it",
   "com.voyager.research.effects.blockhutphotobooth.description": "Unlocks the Photo Booth",
   "com.voyager.photo.taken": "%1$s took a photograph",
+  "com.voyager.photo.hung": "%1$s took a photograph and hung it in the studio",
   "com.voyager.photo.no_camera": "The Photo Booth has no camera - the photographer has asked for one",
   "block.minecolonies.blockhutphotobooth": "Photo Booth",
   "block.voyager.blockhutphotobooth.name": "Photo Booth",

@@ -1356,3 +1356,35 @@ redrawn from one plan and every one of them is now checked by a machine before i
   into one English paragraph (look, level, lens, nights kept, the sky book, tonight's event; portraits
   sold, prices, the chronicle's volumes). Read by Colonist Errands 2.2.0 through reflection, the
   way it reads the Voyager's status, so a Voyager without Errands loses nothing.
+
+## 22. Phase 5e — pictures on the walls, and both professions proven end to end (10 Sep 2026, `alpha.21`)
+
+- **The frames fill.** Every hut had Exposure photograph frames on its walls and every one hung
+  empty, because the pictures went on the shelf. Now a finished picture goes on the wall first
+  (`compat/ExposureFrames.java`, reached through `ColonyCamera.hang`): into an empty frame inside
+  the building's box, or, when all are full, into the frame with the oldest picture, whose print
+  comes down onto the shelf - the walls show the newest work and nothing is lost. The astronomer
+  hangs the darkroom print of a first sighting or a composite, and the lookout photograph once
+  they are back inside (`hangWhatWasCarried()` when the plate is filed); the photographer hangs
+  the idle portraits ("took a photograph and hung it in the studio") and a chronicle photograph
+  that has no album to go in. Paid sittings still leave with the visitor. The study has a frame
+  from level 1 now (over the work row; three from level 3, five at level 5 - it used to start at
+  level 3), so the astronomer has somewhere to hang the first print. `describeForChat()` on both
+  buildings says how many frames hold a picture, for Colonist Errands.
+- **"The Photo Booth has no camera"** is now actually said. The lang key existed since alpha.14 and
+  nothing sent it: a photographer with no camera on the shelf put in a request and otherwise
+  looked simply idle, forever ("the photographer doesn't photograph visitors"). Now the colony's
+  managers are told once a day, and the log says so, the way the Observatory does for the lookout.
+- **The astronomer's idle line** after filing the plate no longer keeps the "photographing the
+  night sky" text through the sleep that follows.
+- **Verified as played, not just as pasted** (`tools/colonytest/`, a second throwaway server mod):
+  on a flat headless world it creates a colony with a fake owner, pastes `observatory1` and
+  `photobooth2`, registers both huts, hires an astronomer and a photographer into them, stocks
+  each shelf with a camera and film, builds a stepped hill for the lookout and spawns a bystander
+  and a visitor; the console then sets day and night. The photographer took a portrait in the
+  studio within thirty seconds of daylight and it hung in a frame on the gallery wall; the
+  astronomer found the hill, walked up with the camera, photographed the sky from the lookout,
+  filed a plate of Mizar, and next morning developed it and printed the photograph. All four
+  exposures were read out of `data/exposures/` and rendered: the studio, the star field, and the
+  night-sky print exactly as the composer draws it. So the answer to "do both really make
+  pictures" is yes, on a server with no player in it.

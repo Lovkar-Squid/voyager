@@ -468,12 +468,13 @@ def study(s, p, x0, z0, x1, z1, y, height, level, roofer=flat_roof, windows=True
     s.set(xi1 - 1, y + 1, zi1, bed(p["bed"], "east", "foot"))
     s.set(xi1, y + 1, zi1, bed(p["bed"], "east", "head"))
     s.tag(xi1 - 1, y + 1, zi1, "bed")
-    # the gallery: photographs over the work row, facing into the room
+    # the gallery: photographs over the work row, facing into the room. One frame from the first
+    # level - the astronomer hangs their prints in it (alpha.21) - then the wall fills as the
+    # building grows: three at level 3, five at level 5.
+    frame(s, cx, y + 2, zi0, "south")
     if level >= 3:
         for dx in (-2, 2):
             frame(s, cx + dx, y + 2, zi0, "south")
-    if level >= 4:
-        frame(s, cx, y + 2, zi0, "south")
     if level >= 5:
         for dx in (-4, 4):
             frame(s, cx + dx, y + 2, zi0, "south")

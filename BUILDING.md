@@ -48,6 +48,7 @@ They resolve paths relative to the repository (`tools/paths.py`), read third-par
 | `check_observatory.py` | block ids, floating blocks, Domum Ornamentum materials and the box, for the Observatory designs |
 | `floorplan.py`, `isorender.py` | ASCII floor plans and a flat isometric preview of a design, for a look without Blender |
 | `pastetest/`, `worldcheck.py` | paste all fifty blueprints through Structurize on a headless server and read the world back (see `pastetest/README.md`) |
+| `colonytest/` | a headless colony with both huts, both workers, a camera on each shelf and a hill for the lookout; drive day and night from the console and watch the log (`/root/nfserver/colonydrive.sh` is the driver used for alpha.21) |
 
 `designs.py` describes every level of both looks as voxels, `voxel.py` turns a design into a
 Structurize `.blueprint` (and back, for verification). `build_pack.py` is also the test suite for

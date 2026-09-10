@@ -116,6 +116,8 @@ public class EntityAIWorkPhotographer
     /** How often the shelf is checked for a camera while idle: five seconds, not every tick. */
     private static final long STOCK_CHECK_EVERY = 100L;
     private int walkAttempts;
+    /** The day the colony was last told there is no camera on the shelf, so it is told once a day. */
+    private long askedForCamera = Long.MIN_VALUE;
     /** The colony's camera while the photographer has it out of the rack. */
     private ItemStack camera = ItemStack.EMPTY;
     private LivingEntity subject;
@@ -310,8 +312,17 @@ public class EntityAIWorkPhotographer
                 return ItemStack.EMPTY;
             }
         }
-        // Not a stall: the request goes out and the bench keeps working meanwhile.
+        // Not a stall: the request goes out and the bench keeps working meanwhile. The colony is
+        // told once a day - a photographer who silently never shoots looks broken, not unequipped.
         checkIfRequestForItemExistOrCreateAsync(new ItemStack(cameraItem));
+        final long day = world.getGameTime() / 24000L;
+        if (askedForCamera != day) {
+            askedForCamera = day;
+            MessageUtils.format(Component.translatable("com.voyager.photo.no_camera"))
+                    .sendTo(building.getColony()).forManagers();
+            Voyager.LOGGER.info("[Photo Booth] no camera on the shelf - {} has asked for one",
+                    worker.getCitizenData().getName());
+        }
         return ItemStack.EMPTY;
     }
 
@@ -693,8 +704,9 @@ public class EntityAIWorkPhotographer
                         + (halfway ? ", halfway up" : "")
                         + ", day " + (job == null ? building.getColony().getDay() : job.day());
                 if (!building.fileInAlbum(photograph, note, name)) {
-                    // No album with room: the print goes on the shelf loose and an album is asked for.
-                    if (!InventoryUtils.addItemStackToProvider(building, photograph)) {
+                    // No album with room: the print goes on the wall, or the shelf, and an album is asked for.
+                    if (!ColonyCamera.hang(level, building, photograph)
+                            && !InventoryUtils.addItemStackToProvider(building, photograph)) {
                         InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), photograph);
                     }
                     final Item album = itemOrNull(ALBUM);
@@ -712,11 +724,13 @@ public class EntityAIWorkPhotographer
                         .sendTo(building.getColony()).forAllPlayers();
             }
             default -> {
-                if (!InventoryUtils.addItemStackToProvider(building, photograph)) {
+                // The gallery wall first - an empty frame, or over the oldest picture - then the shelf.
+                final boolean hung = ColonyCamera.hang(level, building, photograph);
+                if (!hung && !InventoryUtils.addItemStackToProvider(building, photograph)) {
                     InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), photograph);
                 }
                 worker.getCitizenExperienceHandler().addExperience(2.0);
-                MessageUtils.format(Component.translatable("com.voyager.photo.taken", name))
+                MessageUtils.format(Component.translatable(hung ? "com.voyager.photo.hung" : "com.voyager.photo.taken", name))
                         .sendTo(building.getColony()).forAllPlayers();
             }
         }

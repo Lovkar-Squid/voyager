@@ -1,5 +1,6 @@
 package me.lovkar.voyager.photo;
 
+import com.minecolonies.api.colony.buildings.IBuilding;
 import me.lovkar.voyager.Voyager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -250,6 +251,40 @@ public final class ColonyCamera {
                     : ((me.lovkar.voyager.compat.ExposureCamera.Shot) shot).inFrame();
         } catch (final Throwable exposureChanged) {
             return java.util.List.of();
+        }
+    }
+
+    /** Is this one of Exposure's photographs - the item a frame or an album takes. */
+    public static boolean isPhotograph(final ItemStack stack) {
+        if (stack == null || stack.isEmpty()) {
+            return false;
+        }
+        final net.minecraft.resources.ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return id != null && id.getNamespace().equals("exposure") && id.getPath().equals("photograph");
+    }
+
+    // ------------------------------------------------------------------ the walls
+
+    /**
+     * Hang a finished picture in one of the building's own frames - an empty one, or the one with
+     * the oldest picture, whose print goes on the shelf. False when there is no frame for it (or no
+     * Exposure), and the caller keeps the stack.
+     */
+    public static boolean hang(final ServerLevel level, final IBuilding building, final ItemStack photograph) {
+        try {
+            return available() && me.lovkar.voyager.compat.ExposureFrames.hang(level, building, photograph);
+        } catch (final Throwable exposureChanged) {
+            complain(exposureChanged);
+            return false;
+        }
+    }
+
+    /** {frames on the walls, frames with a picture in them}, or {0, 0} without Exposure. */
+    public static int[] frames(final ServerLevel level, final IBuilding building) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureFrames.count(level, building) : new int[] {0, 0};
+        } catch (final Throwable exposureChanged) {
+            return new int[] {0, 0};
         }
     }
 
