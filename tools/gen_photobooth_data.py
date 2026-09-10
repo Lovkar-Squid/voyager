@@ -120,6 +120,8 @@ def main():
         # the colony chronicle: a photograph of every building the builder finishes, kept in an album
         "com.voyager.photo.chronicle": "%1$s, level %2$s (day %3$s)",
         "com.voyager.photo.chronicled": "%1$s photographed the new %2$s for the colony chronicle",
+        "com.voyager.photo.chronicle_halfway": "%1$s, level %2$s - halfway up (day %3$s)",
+        "com.voyager.photo.chronicled_halfway": "%1$s photographed the %2$s going up, for the colony chronicle",
         "com.voyager.photo.volume": "The chronicle's album is full: %2$s signed \"%1$s\"",
         "com.minecolonies.coremod.gui.townhall.stats.portraits_sold": "Portraits sold: %d",
         "com.minecolonies.coremod.gui.townhall.stats.chronicle_photographs": "Chronicle photographs: %d",

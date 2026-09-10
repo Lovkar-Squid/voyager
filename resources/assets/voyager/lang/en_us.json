@@ -191,5 +191,7 @@
   "com.voyager.sky.night_sky": "The night sky over %1$s",
   "com.voyager.sky.from_lookout": "%1$s, from the lookout",
   "com.voyager.observatory.no_camera": "The Observatory has no camera for the lookout - the astronomer has asked for one",
-  "com.minecolonies.coremod.gui.townhall.stats.lookout_nights": "Nights at the lookout: %d"
+  "com.minecolonies.coremod.gui.townhall.stats.lookout_nights": "Nights at the lookout: %d",
+  "com.voyager.photo.chronicle_halfway": "%1$s, level %2$s - halfway up (day %3$s)",
+  "com.voyager.photo.chronicled_halfway": "%1$s photographed the %2$s going up, for the colony chronicle"
 }

@@ -227,7 +227,7 @@ public class Voyager {
         if (FMLEnvironment.dist.isClient()) {
             VoyagerClient.init(modEventBus);
         }
-        LOGGER.info("Voyager 0.3.0-alpha.15 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
+        LOGGER.info("Voyager 0.3.0-alpha.16 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
     }
 
     /**

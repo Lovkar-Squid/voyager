@@ -6,6 +6,13 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IVisitorData;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.minecolonies.api.colony.jobs.registry.JobEntry;
+import com.minecolonies.api.colony.workorders.IServerWorkOrder;
+import com.minecolonies.api.colony.workorders.WorkOrderType;
+import com.minecolonies.core.colony.buildings.AbstractBuildingStructureBuilder;
+import com.minecolonies.core.colony.workorders.WorkOrderBuilding;
+import com.minecolonies.core.entity.ai.workers.util.BuildingProgressStage;
+import java.util.HashSet;
+import java.util.Set;
 import com.minecolonies.api.util.InventoryUtils;
 import com.minecolonies.api.util.MessageUtils;
 import com.minecolonies.api.util.StatsUtil;
@@ -70,19 +77,29 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     private static final String STAT_SOLD = "portraits_sold";
     private static final String STAT_CHRONICLE = "chronicle_photographs";
 
+    /** The chronicle photographs a build twice: halfway up, and finished. */
+    public static final String PHASE_DONE = "";
+    public static final String PHASE_HALFWAY = "halfway";
+
     /** A building the chronicle still owes a photograph. */
-    public record ChronicleJob(BlockPos pos, int level, int day) {
+    public record ChronicleJob(BlockPos pos, int level, int day, String phase) {
+        public boolean halfway() {
+            return PHASE_HALFWAY.equals(phase);
+        }
+
         CompoundTag save() {
             final CompoundTag tag = new CompoundTag();
             tag.put("pos", NbtUtils.writeBlockPos(pos));
             tag.putInt("level", level);
             tag.putInt("day", day);
+            tag.putString("phase", phase == null ? PHASE_DONE : phase);
             return tag;
         }
 
         static @Nullable ChronicleJob load(final CompoundTag tag) {
             return NbtUtils.readBlockPos(tag, "pos")
-                    .map(p -> new ChronicleJob(p, tag.getInt("level"), tag.getInt("day"))).orElse(null);
+                    .map(p -> new ChronicleJob(p, tag.getInt("level"), tag.getInt("day"), tag.getString("phase")))
+                    .orElse(null);
         }
     }
 
@@ -100,6 +117,9 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     // the chronicle
     private final List<ChronicleJob> chronicle = new ArrayList<>();
     private int volumes;
+    /** Work orders already photographed halfway, so each build gets one progress picture. */
+    private final Set<Integer> halfwayShot = new HashSet<>();
+    private static final String NBT_HALFWAY = "halfway_shot";
 
     public BuildingPhotoBooth(final IColony colony, final BlockPos pos) {
         super(colony, pos);
@@ -168,6 +188,9 @@ public class BuildingPhotoBooth extends AbstractBuilding {
         if (sitterId != null && !sittingDone && now - bookedAt > BOOKING_TIMEOUT) {
             Voyager.LOGGER.debug("[Photo Booth] booking by visitor {} expired", sitterId);
             clearSitting();
+        }
+        if (getBuildingLevel() >= 1 && ColonyCamera.available()) {
+            watchTheBuilders(colony);
         }
         if (getBuildingLevel() < SITTINGS_LEVEL || !ColonyCamera.available()) {
             return;
@@ -351,12 +374,72 @@ public class BuildingPhotoBooth extends AbstractBuilding {
 
     /** The builder finished something: the chronicle owes it a photograph. */
     public void chronicle(final IBuilding built, final int level) {
+        chronicle(built, level, PHASE_DONE);
+    }
+
+    public void chronicle(final IBuilding built, final int level, final String phase) {
         if (built == null) {
             return;
         }
-        chronicle.removeIf(job -> job.pos().equals(built.getPosition()));
-        chronicle.add(new ChronicleJob(built.getPosition(), level, getColony().getDay()));
+        final String which = phase == null ? PHASE_DONE : phase;
+        // A finished building supersedes its own halfway picture if that was never taken.
+        chronicle.removeIf(job -> job.pos().equals(built.getPosition())
+                && (job.phase().equals(which) || PHASE_DONE.equals(which)));
+        chronicle.add(new ChronicleJob(built.getPosition(), level, getColony().getDay(), which));
         markDirty();
+    }
+
+    /**
+     * Progress pictures: every build or upgrade in the colony is photographed once halfway up.
+     *
+     * <p>The builder's hut keeps its place in the blueprint (a blueprint-local position and a stage
+     * - clear, solid blocks, non-solids, decoration...). Once the solid stage has climbed past half
+     * the blueprint's height, or any later stage has begun, the walls are up and the roof is not,
+     * which is the picture worth having; the chronicle queues it and remembers the work order so
+     * it is taken once.</p>
+     */
+    private void watchTheBuilders(final IColony colony) {
+        for (final IServerWorkOrder order : colony.getWorkManager().getWorkOrders().values()) {
+            if (!(order instanceof WorkOrderBuilding build) || !build.isClaimed() || halfwayShot.contains(build.getID())) {
+                continue;
+            }
+            if (build.getWorkOrderType() != WorkOrderType.BUILD && build.getWorkOrderType() != WorkOrderType.UPGRADE) {
+                continue;
+            }
+            final IBuilding hut = colony.getServerBuildingManager().getBuilding(build.getClaimedBy());
+            if (!(hut instanceof AbstractBuildingStructureBuilder builder)) {
+                continue;
+            }
+            final com.minecolonies.api.util.Tuple<BlockPos, BuildingProgressStage> progress = builder.getProgress();
+            if (progress == null || progress.getA() == null || progress.getB() == null || progress.getA().getY() < 0) {
+                continue;
+            }
+            final BuildingProgressStage stage = progress.getB();
+            boolean halfway = stage == BuildingProgressStage.CLEAR_NON_SOLIDS || stage == BuildingProgressStage.DECORATE
+                    || stage == BuildingProgressStage.SPAWN;
+            if (!halfway && stage == BuildingProgressStage.BUILD_SOLID) {
+                int height = 0;
+                try {
+                    height = build.getBlueprint() == null ? 0 : build.getBlueprint().getSizeY();
+                } catch (final Throwable notLoaded) {
+                    height = 0;
+                }
+                halfway = height > 0 && progress.getA().getY() >= height / 2;
+            }
+            if (!halfway) {
+                continue;
+            }
+            final IBuilding subject = colony.getServerBuildingManager().getBuilding(build.getLocation());
+            if (subject == null) {
+                continue;
+            }
+            halfwayShot.add(build.getID());
+            chronicle(subject, build.getTargetLevel(), PHASE_HALFWAY);
+            Voyager.LOGGER.info("[chronicle] {} level {} is halfway up - a progress photograph is owed",
+                    subject.getBuildingDisplayName(), build.getTargetLevel());
+        }
+        // forget work orders that no longer exist
+        halfwayShot.removeIf(id -> colony.getWorkManager().getWorkOrder(id) == null);
     }
 
     public @Nullable ChronicleJob nextChronicle() {
@@ -458,6 +541,10 @@ public class BuildingPhotoBooth extends AbstractBuilding {
                 chronicle.add(job);
             }
         }
+        halfwayShot.clear();
+        for (final int id : tag.getIntArray(NBT_HALFWAY)) {
+            halfwayShot.add(id);
+        }
     }
 
     @Override
@@ -471,6 +558,7 @@ public class BuildingPhotoBooth extends AbstractBuilding {
             list.add(job.save());
         }
         tag.put(NBT_CHRONICLE, list);
+        tag.putIntArray(NBT_HALFWAY, halfwayShot.stream().mapToInt(Integer::intValue).toArray());
         return tag;
     }
 

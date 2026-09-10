@@ -567,9 +567,11 @@ public class EntityAIWorkPhotographer
             case CHRONICLE -> {
                 lastChronicle = world.getGameTime();
                 final IBuilding about = building.chronicleSubject(job);
+                final boolean halfway = job != null && job.halfway();
                 final String note = about == null ? title.getString()
                         : Component.translatable(about.getBuildingDisplayName()).getString()
                         + " - level " + (job == null ? about.getBuildingLevel() : job.level())
+                        + (halfway ? ", halfway up" : "")
                         + ", day " + (job == null ? building.getColony().getDay() : job.day());
                 if (!building.fileInAlbum(photograph, note, name)) {
                     // No album with room: the print goes on the shelf loose and an album is asked for.
@@ -585,7 +587,8 @@ public class EntityAIWorkPhotographer
                     building.chronicleDone(job);
                 }
                 worker.getCitizenExperienceHandler().addExperience(4.0);
-                MessageUtils.format(Component.translatable("com.voyager.photo.chronicled", name,
+                MessageUtils.format(Component.translatable(
+                                halfway ? "com.voyager.photo.chronicled_halfway" : "com.voyager.photo.chronicled", name,
                                 about == null ? title : Component.translatable(about.getBuildingDisplayName())))
                         .sendTo(building.getColony()).forAllPlayers();
             }
@@ -613,7 +616,8 @@ public class EntityAIWorkPhotographer
             final IBuilding about = building.chronicleSubject(chronicleJob);
             if (about != null) {
                 final int level = chronicleJob == null ? about.getBuildingLevel() : chronicleJob.level();
-                return Component.translatable("com.voyager.photo.chronicle",
+                final boolean halfway = chronicleJob != null && chronicleJob.halfway();
+                return Component.translatable(halfway ? "com.voyager.photo.chronicle_halfway" : "com.voyager.photo.chronicle",
                         Component.translatable(about.getBuildingDisplayName()), level,
                         chronicleJob == null ? building.getColony().getDay() : chronicleJob.day());
             }

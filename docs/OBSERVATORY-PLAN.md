@@ -1254,3 +1254,15 @@ A rallied guard costs what a rally costs in MineColonies (a hungry one comes bac
 
 The Observatory gained a settings tab: `voyager:lookout` (on) and `voyager:escort` (one guard) -
 plain `BoolSetting`/`StringSetting`, so nothing new had to be taught to MineColonies' factories.
+
+### 18.6 Progress pictures (`alpha.16`)
+
+Marko: *and maybe document during construction too - photograph the progress halfway?* The
+builder's hut keeps its place in the blueprint - a blueprint-local position and a stage (clear,
+solid blocks, non-solids, decoration, spawn). Every colony tick the Photo Booth looks at every
+claimed build or upgrade in the colony's work manager: once the solid stage has climbed past half
+the blueprint's height, or any later stage has begun, the walls are up and the roof is not, and
+that is the picture worth having. The work order is remembered (persisted) so each build gets one
+progress picture, titled *Town Hall, level 3 - halfway up (day 11)*, taken from the same kind of
+viewpoint as the finished one and pasted into the same album; the finished picture follows when
+the builder is done. A finished building supersedes its own halfway picture if that was never taken.
