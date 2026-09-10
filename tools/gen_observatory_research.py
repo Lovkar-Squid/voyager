@@ -72,6 +72,21 @@ def main():
         "com.voyager.plate.mark.duplicate": "Another of the same",
         "com.voyager.plate.mark.composite": "Composite of two nights",
         "com.voyager.observatory.shut": "No cosmic objects in any datapack - the astronomer keeps the watch, but every plate will come home blank",
+        # the lookout and the night escort
+        "com.minecolonies.coremod.setting.voyager:lookout": "Watch from the lookout:",
+        "com.minecolonies.coremod.setting.tooltip.voyager:lookout": "When there is a hill, ridge or cliff with a clear sky within forty blocks, the astronomer keeps the watch there instead of at the instrument - and brings the colony's camera to photograph the night sky.",
+        "com.minecolonies.coremod.setting.voyager:escort": "Night escort:",
+        "com.minecolonies.coremod.setting.tooltip.voyager:escort": "Guards from the nearest towers walk out with the astronomer and stand watch at the lookout until the plate is taken.",
+        "com.voyager.setting.escort.off": "No escort",
+        "com.voyager.setting.escort.one": "One guard",
+        "com.voyager.setting.escort.two": "Two guards",
+        "com.voyager.sky.lookout": "%1$s went up to the lookout at %2$s",
+        "com.voyager.sky.lookout_escort": "%1$s went up to the lookout with %2$s guard(s) standing watch",
+        "com.voyager.sky.lookout_photo": "%1$s photographed %2$s from the lookout",
+        "com.voyager.sky.night_sky": "The night sky over %1$s",
+        "com.voyager.sky.from_lookout": "%1$s, from the lookout",
+        "com.voyager.observatory.no_camera": "The Observatory has no camera for the lookout - the astronomer has asked for one",
+        "com.minecolonies.coremod.gui.townhall.stats.lookout_nights": "Nights at the lookout: %d",
     })
     with open(LANG, "w") as f:
         json.dump(lang, f, indent=2, ensure_ascii=False)

@@ -78,5 +78,16 @@ public class AstronomerModel extends CitizenModel<AbstractEntityCitizen> {
         super.setupAnim(entity, limbSwing, limbSwingAmount, ageInTicks, netHeadYaw, headPitch);
         this.hat.visible = false;   // the hood is part of the head; CitizenModel re-enables the vanilla hat layer
         this.body.getChild("satchel").visible = isWorking(entity);
+        final String meta = entity.getRenderMetadata();
+        if (meta != null && meta.contains("camera")) {
+            // Up at the lookout with the colony's camera: both hands to the face, following the head,
+            // which is tilted at the sky.
+            this.rightArm.xRot = -1.55F + this.head.xRot;
+            this.rightArm.yRot = -0.28F + this.head.yRot;
+            this.rightArm.zRot = 0.0F;
+            this.leftArm.xRot = -1.55F + this.head.xRot;
+            this.leftArm.yRot = 0.28F + this.head.yRot;
+            this.leftArm.zRot = 0.0F;
+        }
     }
 }

@@ -1200,3 +1200,57 @@ every five minutes).
 - The lookout and the night escort for the astronomer (§17.6), next.
 - A stat line for the money itself (`earned` is persisted; the townhall stats window shows counts).
 - Group portraits, portraits at home for happiness (§4 of the design doc).
+
+## 19. Phase 5b — the lookout and the night escort (10 Sep 2026, `alpha.15`)
+
+Marko: *maybe the one who works in the Observatory could go up a hill, or somewhere the sky is very
+clear at night, to photograph better, and take the camera along - and you could assign a guard to
+protect them at night.*
+
+### 19.1 Finding the lookout (`BuildingObservatory.getLookout`)
+
+A blueprint may tag one (`lookout`); none of ours do, so the building looks for it in the land:
+every third column within forty blocks of the instrument, inside the colony, at the surface
+(`MOTION_BLOCKING_NO_LEAVES`), at least three blocks above the instrument, standable, under open
+sky, not inside any building's footprint, and open all round - at least five of the eight compass
+points five blocks out are no higher than it. Score = rise × 2 + openness × 1.5 − walk × 0.15;
+the best wins; a flat colony has none, and then the astronomer keeps the watch at the instrument
+exactly as before. Looked for again every three days, cached in the building's NBT.
+
+### 19.2 The night from the hill (`EntityAIWorkAstronomer`)
+
+At dusk, if the *Watch from the lookout* setting is on and there is a lookout, `chooseTheWatch()`
+takes the colony's camera off the Observatory's shelf **into the astronomer's own pack** (not a
+field: a server that stops halfway up the hill must not lose the camera), loads a roll from the
+shelf if the one in it is full, asks for a camera once a night if there is none (the Photo Booth
+makes them), sends for the escort, and walks out with the camera in hand and the arms up. The watch
+is kept at the lookout - the astronomer turns to where tonight's object stands in the sky, because
+Exposure: Space gives every object a yaw and a pitch - and the plate comes home **one band
+brighter** (a dark sky), rolled with the better of the Observatory's lens and the camera's own
+telescopic lens, since Exposure: Space grades its lenses the same way.
+
+Then the photograph: a real Exposure exposure of the night sky, drawn band by band like the
+photographer's, with the **moon** where the moon is tonight in tonight's phase (a four-degree disc
+with the phase cut out of it by an offset shadow disc), the stars, and **the object itself pressed
+into the frame** out of Exposure: Space's own 64×64 catalogue picture, read straight out of the mod
+jar on the server and pressed into map colours - large through a telescopic lens, a smudge of the
+right colours through a plain one. Titled *Andromeda Galaxy, from the lookout*; filed on the shelf
+with the plates when the astronomer is home.
+
+Sleep moved: MineColonies is allowed to put the astronomer to bed only once they are **home**
+(`filePlate`), not the moment the night counts, or it would put them to bed on the hill with the
+photograph half taken.
+
+### 19.3 The escort (`BuildingObservatory.callEscort`)
+
+The rally banner's own mechanism, without the banner: the nearest guard towers with a guard in
+them get `setRallyLocation(new StaticLocation(lookout, dimension))`. The guard's own AI does the
+rest - walks there, glows, fights anything within thirty blocks - until `releaseEscort()` at the
+end of the watch, and as a safety, at the first colony tick after dawn. The towers are remembered
+in NBT so a restart releases them too. *Night escort:* one guard (default), two, or none.
+A rallied guard costs what a rally costs in MineColonies (a hungry one comes back hungrier).
+
+### 19.4 Settings
+
+The Observatory gained a settings tab: `voyager:lookout` (on) and `voyager:escort` (one guard) -
+plain `BoolSetting`/`StringSetting`, so nothing new had to be taught to MineColonies' factories.

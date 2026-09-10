@@ -161,6 +161,8 @@ public class Voyager {
                             // The Observatory's own study of the sky - its research, paid for in
                             // nights of watching. Nothing to do with the University's tree.
                             .addBuildingModuleProducer(ObservatoryModules.STUDY)
+                            // The lookout and the night escort.
+                            .addBuildingModuleProducer(ObservatoryModules.SETTINGS)
                             // The beds in the study belong to the astronomers who work here.
                             .addBuildingModuleProducer(BuildingModules.BED)
                             .addBuildingModuleProducer(BuildingModules.MIN_STOCK)
@@ -225,7 +227,7 @@ public class Voyager {
         if (FMLEnvironment.dist.isClient()) {
             VoyagerClient.init(modEventBus);
         }
-        LOGGER.info("Voyager 0.3.0-alpha.14 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
+        LOGGER.info("Voyager 0.3.0-alpha.15 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
     }
 
     /**

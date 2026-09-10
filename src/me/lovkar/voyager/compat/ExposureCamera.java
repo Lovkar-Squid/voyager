@@ -1,10 +1,17 @@
 package me.lovkar.voyager.compat;
 
+import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import javax.imageio.ImageIO;
 
 import io.github.mortuusars.exposure.Exposure;
 import io.github.mortuusars.exposure.ExposureServer;
@@ -225,6 +232,9 @@ public final class ExposureCamera {
         final boolean raining;
         final Fittings fittings;
         final double tanHalfFov;
+        /** Where the moon is tonight, and how much of it is lit (0 full .. 4 new .. 7). */
+        final Vec3 moonDir;
+        final int moonPhase;
 
         Shot(final ServerLevel level, final Entity eye, final Fittings fittings) {
             this.fittings = fittings;
@@ -235,6 +245,11 @@ public final class ExposureCamera {
             up = right.cross(forward).normalize();
             dayTime = level.getDayTime() % 24000L;
             raining = level.isRaining();
+            // The sun rises in the east (+x) at 0, stands overhead at 6000 and sets in the west at
+            // 12000; the moon is always opposite it.
+            final double theta = (dayTime / 24000.0) * Math.PI * 2.0;
+            moonDir = new Vec3(-Math.cos(theta), -Math.sin(theta), 0.0).normalize();
+            moonPhase = level.getMoonPhase();
             final AABB reach = eye.getBoundingBox().inflate(RANGE);
             for (final Entity other : level.getEntities(eye, reach, e -> e.isAlive() && e != eye)) {
                 final Vec3 to = other.getBoundingBox().getCenter().subtract(origin);
@@ -404,6 +419,9 @@ public final class ExposureCamera {
         final boolean night = t >= 13000L && t <= 23000L;
         final boolean golden = (t >= 11000L && t < 13000L) || t > 23000L;
         if (night) {
+            if (shot.moonDir.y > 0.05 && moonlit(shot, dir)) {
+                return (byte) MapColor.QUARTZ.getPackedId(MapColor.Brightness.HIGH);
+            }
             if (dir.y > 0.0 && ((px * 73856093) ^ (py * 19349663)) % 97 == 0) {
                 return (byte) MapColor.SNOW.getPackedId(MapColor.Brightness.HIGH);
             }
@@ -417,6 +435,98 @@ public final class ExposureCamera {
         }
         return (byte) MapColor.COLOR_LIGHT_BLUE.getPackedId(
                 dir.y > 0.3 ? MapColor.Brightness.HIGH : MapColor.Brightness.NORMAL);
+    }
+
+    /** A four-degree moon, with its phase cut out of it the way a moon's phase looks: a dark disc offset. */
+    private static boolean moonlit(final Shot shot, final Vec3 dir) {
+        final double cosR = Math.cos(Math.toRadians(4.0));
+        if (dir.dot(shot.moonDir) < cosR) {
+            return false;
+        }
+        if (shot.moonPhase == 0) {
+            return true;                                // full
+        }
+        if (shot.moonPhase == 4) {
+            return false;                               // new
+        }
+        // The shadow disc slides across from one side to the other over the month.
+        final double[] offsets = {0.0, 0.55, 1.0, 1.5, 9.0, -1.5, -1.0, -0.55};
+        final Vec3 side = shot.moonDir.cross(new Vec3(0.0, 1.0, 0.0)).normalize();
+        final double r = Math.toRadians(4.0);
+        final Vec3 shadowCentre = shot.moonDir.add(side.scale(offsets[shot.moonPhase] * r)).normalize();
+        return dir.dot(shadowCentre) < Math.cos(r * 1.05);
+    }
+
+    // ------------------------------------------------------------------ the sky's own pictures
+
+    private static final Map<ResourceLocation, Optional<BufferedImage>> TEXTURES = new HashMap<>();
+
+    /**
+     * Paint a cosmic object into the frame: its catalogue picture, scaled to how big it would look
+     * through this lens, centred where the astronomer pointed the camera.
+     *
+     * <p>Exposure: Space ships a 64x64 picture of every object it puts in the sky; on the server we
+     * read it straight out of the mod's jar and press it into map colours. Through a telescopic
+     * lens the object fills much of the frame; through a plain one it is a smudge of the right
+     * colours a few pixels wide - which is what a plain camera pointed at a nebula would get.</p>
+     *
+     * @param sizePx the width the object should be painted at, in pixels of the frame
+     * @return true if something was painted
+     */
+    public static boolean paintObject(final byte[] pixels, final ResourceLocation texture, final int sizePx) {
+        if (pixels.length != SIZE * SIZE || texture == null || sizePx <= 0) {
+            return false;
+        }
+        final BufferedImage image = TEXTURES.computeIfAbsent(texture, ExposureCamera::load).orElse(null);
+        if (image == null) {
+            return false;
+        }
+        final int size = Math.min(SIZE, sizePx);
+        final int x0 = (SIZE - size) / 2;
+        final int y0 = (SIZE - size) / 2;
+        boolean painted = false;
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                final int sx = Math.min(image.getWidth() - 1, x * image.getWidth() / size);
+                final int sy = Math.min(image.getHeight() - 1, y * image.getHeight() / size);
+                final int argb = image.getRGB(sx, sy);
+                final int alpha = (argb >>> 24) & 0xFF;
+                if (alpha < 96) {
+                    continue;
+                }
+                final int r = (argb >> 16) & 0xFF;
+                final int g = (argb >> 8) & 0xFF;
+                final int b = argb & 0xFF;
+                if (r + g + b < 60) {
+                    continue;                           // the picture's own black background is sky
+                }
+                pixels[(y0 + y) * SIZE + x0 + x] = Filters.nearest((r << 16) | (g << 8) | b);
+                painted = true;
+            }
+        }
+        return painted;
+    }
+
+    /** Read a texture out of whichever mod jar owns its namespace; empty if nobody does. */
+    private static Optional<BufferedImage> load(final ResourceLocation texture) {
+        final String path = "assets/" + texture.getNamespace() + "/" + texture.getPath();
+        try {
+            final var mod = net.neoforged.fml.ModList.get().getModFileById(texture.getNamespace());
+            if (mod != null) {
+                final Path file = mod.getFile().findResource(path.split("/"));
+                if (file != null && Files.exists(file)) {
+                    try (InputStream in = Files.newInputStream(file)) {
+                        return Optional.ofNullable(ImageIO.read(in));
+                    }
+                }
+            }
+            try (InputStream in = ExposureCamera.class.getClassLoader().getResourceAsStream(path)) {
+                return in == null ? Optional.empty() : Optional.ofNullable(ImageIO.read(in));
+            }
+        } catch (final Throwable t) {
+            me.lovkar.voyager.Voyager.LOGGER.info("[Observatory] could not read {} ({})", texture, t.toString());
+            return Optional.empty();
+        }
     }
 
     /**

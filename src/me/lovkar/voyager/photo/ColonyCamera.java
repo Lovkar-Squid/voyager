@@ -139,6 +139,29 @@ public final class ColonyCamera {
         }
     }
 
+    /** Press a cosmic object's catalogue picture into the frame, centred. False if it could not be read. */
+    public static boolean paintObject(final byte[] pixels, final net.minecraft.resources.ResourceLocation texture,
+                                      final int sizePx) {
+        if (!available() || pixels.length == 0) {
+            return false;
+        }
+        try {
+            return me.lovkar.voyager.compat.ExposureCamera.paintObject(pixels, texture, sizePx);
+        } catch (final Throwable exposureChanged) {
+            complain(exposureChanged);
+            return false;
+        }
+    }
+
+    /** The field of view the camera's lens gives, 1.0 for a plain one, 0.25-0.5 through a telescope. */
+    public static double fovScale(final ItemStack camera) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureCamera.fittingsOf(camera).fovScale() : 1.0;
+        } catch (final Throwable exposureChanged) {
+            return 1.0;
+        }
+    }
+
     // ------------------------------------------------------------------ albums
 
     /** An Exposure album with room to write in it (not a signed volume). */

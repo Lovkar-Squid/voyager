@@ -89,10 +89,36 @@ Point's console, so the Undertaker can bury - or resurrect - them like any other
 | Long-range Comms | 4 | the Voyager reports to the colony chat while away |
 | Return to Sender | 5 | a lost Voyager's gear comes back to the hut |
 
+## The Observatory and the Photo Booth (0.3.0, in testing)
+
+Two more buildings, built around [Exposure](https://www.curseforge.com/minecraft/mc-mods/exposure)
+and its Space and Expanded add-ons. Neither needs the other, and both are optional.
+
+**The Observatory** — an *Astronomer* who works the night: at dusk they walk out to the instrument
+(a telescope, an armillary sphere, a gnomon, a ring - five looks), keep the watch while the sky is
+clear, and come home at dawn with a plate. What is in the sky comes from Exposure: Space's cosmic
+objects (or any datapack of them); the darkroom develops the plates into prints and genuine
+Exposure photographs, the colony is paid the objects' own rewards, and the building runs its own
+research — *studies* paid for in nights of watching, some of which reach the Voyager. The
+astronomer lives at the Observatory. When there is a hill, ridge or cliff with a clear sky within
+forty blocks they keep the watch from **the lookout** instead, with the colony's camera, and bring
+back a real photograph of the night sky with the object they caught in it; a setting sends one or
+two **guards** from the nearest towers out with them to stand watch until the plate is taken.
+
+**The Photo Booth** — a *Photographer* who crafts everything Exposure makes (film, cameras, stands,
+frames, albums, flashes) and, when the bench is quiet, takes photographs of the colony: drawn ray
+by ray on the server out of the world's own map colours, with the colonists in front of the lens in
+the picture, shaded by the light, through whatever film, lens, filter and flash the colony fitted
+to its camera. Every building the builder finishes is photographed for the **colony chronicle**, an
+album on the shelf signed as a volume when it is full; from level 2 **visitors come in for a
+portrait** and, with Trade Post for MineColonies installed, pay for it in coins.
+
 ## Requirements
 
 - Minecraft 1.21.1, NeoForge 21.1.x
 - MineColonies 1.1.1300+ (tested with 1.1.1368) and Structurize
+- Optional: Exposure 1.9+ (the Photo Booth, and the Observatory's photographs), Exposure: Space
+  (the sky itself), Exposure: Expanded (filters), Trade Post for MineColonies (the visitors' coins)
 
 Optional: with [Colonist Errands](https://www.curseforge.com/minecraft/mc-mods/colonist-errands)
 2.1.0+ and Talking Colonists, Voyagers can tell you about their last expedition and chat with

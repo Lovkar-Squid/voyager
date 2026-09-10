@@ -2,7 +2,11 @@ package me.lovkar.voyager.colony;
 
 import com.minecolonies.api.colony.buildings.registry.BuildingEntry;
 import com.minecolonies.api.entity.citizen.Skill;
+import com.minecolonies.core.colony.buildings.modules.SettingsModule;
 import com.minecolonies.core.colony.buildings.modules.WorkAtHomeBuildingModule;
+import com.minecolonies.core.colony.buildings.modules.settings.BoolSetting;
+import com.minecolonies.core.colony.buildings.modules.settings.StringSetting;
+import com.minecolonies.core.colony.buildings.moduleviews.SettingsModuleView;
 import com.minecolonies.core.colony.buildings.moduleviews.WorkerBuildingModuleView;
 import me.lovkar.voyager.Voyager;
 
@@ -34,6 +38,20 @@ public final class ObservatoryModules {
     public static final BuildingEntry.ModuleProducer<SkyStudyModule, SkyStudyModuleView> STUDY =
             new BuildingEntry.ModuleProducer<>("observatory_study",
                     SkyStudyModule::new, () -> SkyStudyModuleView::new);
+
+    /**
+     * The two switches the colony has over the night: whether the astronomer keeps the watch from
+     * the lookout when there is one, and how many guards walk out with them - one by default,
+     * because a colonist alone on a hill at night is a colonist the zombies get to first.
+     */
+    public static final BuildingEntry.ModuleProducer<SettingsModule, SettingsModuleView> SETTINGS =
+            new BuildingEntry.ModuleProducer<>("observatory_settings",
+                    () -> (SettingsModule) new SettingsModule()
+                            .with(BuildingObservatory.LOOKOUT, new BoolSetting(true))
+                            .with(BuildingObservatory.ESCORT, new StringSetting(
+                                    BuildingObservatory.ESCORT_ONE, BuildingObservatory.ESCORT_TWO,
+                                    BuildingObservatory.ESCORT_OFF)),
+                    () -> SettingsModuleView::new);
 
     private ObservatoryModules() {
     }
