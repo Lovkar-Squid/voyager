@@ -124,6 +124,24 @@ photographer's portraits on the gallery wall.
 - Optional: Exposure 1.9+ (the Photo Booth, and the Observatory's photographs), Exposure: Space
   (the sky itself), Exposure: Expanded (filters), Trade Post for MineColonies (the visitors' coins)
 
+### What needs what
+
+- **Departure Point and Voyagers** (the End expeditions) - only MineColonies and Structurize. They
+  work exactly as in 0.2.0 whatever else is or is not installed.
+- **Observatory and Astronomer** - the sky is Exposure: Space's: without it the astronomer keeps the
+  watch over an empty sky (nothing caught, nothing paid, the sky book stays empty, the lens studies
+  cannot be bought). Exposure itself makes the pictures: without it the plates, the rewards and the
+  sky book still work, but there is no darkroom photograph, no lookout photograph and no frames on
+  the walls. Exposure: Expanded supplies the first ("Bad") lens; Exposure: Space lists it as required.
+- **Photo Booth and Photographer** - needs Exposure, full stop: without it the building can be placed
+  and the photographer hired, but there are no recipes, no camera, no photographs, no chronicle and
+  no visitor portraits. Trade Post for MineColonies only adds the coins - without it visitors still
+  sit for a portrait, nobody pays for it.
+- **Colonist Errands 2.2.0+** is optional and gives the astronomer and the photographer their voice.
+
+Short version: install Exposure, Exposure: Space and Exposure: Expanded if you want the Observatory
+and the Photo Booth; the End expeditions never needed them.
+
 Optional: with [Colonist Errands](https://www.curseforge.com/minecraft/mc-mods/colonist-errands)
 2.1.0+ and Talking Colonists, Voyagers can tell you about their last expedition and chat with
 their crewmate while they wait for the next launch window; with Colonist Errands 2.2.0+ the
