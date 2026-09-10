@@ -5,7 +5,7 @@ issueTrackerURL="https://github.com/Lovkar-Squid/voyager/issues"
 
 [[mods]]
 modId="voyager"
-version="0.3.0-alpha.17"
+version="0.3.0-alpha.18"
 displayName="Voyager"
 description='''Two MineColonies professions that look outward. The Voyager leaves from a Departure Point - a Launchpad with a rocket or an End Gate - and comes back from the End with end stone, purpur, chorus, ender pearls and shulker shells, if they come back at all. The Astronomer works the night at an Observatory - a Copper Dome, a Stargazer's Keep, a Sand Court, a Skyward Station or an Aperture Array - and brings back plates of what is up there (needs Exposure and Exposure: Space). Made by Lovkar & Claude.'''
 authors="Lovkar & Claude"
