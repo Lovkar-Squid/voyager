@@ -102,10 +102,10 @@ def main():
         "item.voyager.blockhutphotobooth": "Photo Booth",
         "com.minecolonies.building.photobooth": "Photo Booth",
         "com.voyager.building.photobooth": "Photo Booth",
-        "com.voyager.building.photobooth.desc": "The colony's darkroom and print shop. The Photographer develops the film you bring home, prints it in the Lightroom, ages and copies and frames it, binds albums - and crafts every camera, film and frame the colony needs. And when the bench is quiet, they pick up the camera and take a picture themselves. Build it as a Copper Dome, a Stargazer's Keep, a Sand Court, a Skyward Station or an Aperture Array. Needs Exposure.",
+        "com.voyager.building.photobooth.desc": "The colony's studio, darkroom and print shop. The Photographer crafts every camera, film, frame and album the colony needs, develops the film you bring home - and takes photographs: of colonists, of every building the builder finishes (kept in the colony chronicle, an album on the shelf), and from level 2 of visitors, who come in for a portrait and pay for it in Trade Post coins. Build it as a Copper Dome, a Stargazer's Keep, a Sand Court, a Skyward Station or an Aperture Array. Needs Exposure.",
         "com.voyager.job.photographer": "Photographer",
         "com.minecolonies.coremod.jei.photographer": "Develops, prints and frames the colony's photographs - and takes a few of their own.",
-        "voyager:photographer.job.desc": "Runs the colony's darkroom: develops film, prints photographs, ages and copies and frames them, and crafts everything Exposure needs. When there is nothing on the bench, they take a photograph themselves.",
+        "voyager:photographer.job.desc": "Runs the colony's studio and darkroom: crafts everything Exposure needs, develops and prints film, photographs the colonists and every new building for the colony chronicle, and takes paid portraits of visitors.",
         "voyager:photographer.skills.desc": "Creativity decides what they can be taught, Dexterity how steady the hand is at the enlarger.",
         "com.voyager.research.technology.photobooth.name": "A Moment Held",
         "com.voyager.research.technology.photobooth.subtitle": "Somebody has to develop it",
@@ -114,6 +114,15 @@ def main():
         "com.voyager.photo.portrait": "Portrait of %1$s",
         "com.voyager.photo.view": "%1$s",
         "com.voyager.photo.no_camera": "The Photo Booth has no camera - the photographer has asked for one",
+        # visitors who come in for a portrait, and what they pay
+        "com.voyager.photo.sold": "%1$s bought their portrait from %3$s for %2$s",
+        "com.voyager.photo.sat": "%1$s sat for a portrait at the Photo Booth",
+        # the colony chronicle: a photograph of every building the builder finishes, kept in an album
+        "com.voyager.photo.chronicle": "%1$s, level %2$s (day %3$s)",
+        "com.voyager.photo.chronicled": "%1$s photographed the new %2$s for the colony chronicle",
+        "com.voyager.photo.volume": "The chronicle's album is full: %2$s signed \"%1$s\"",
+        "com.minecolonies.coremod.gui.townhall.stats.portraits_sold": "Portraits sold: %d",
+        "com.minecolonies.coremod.gui.townhall.stats.chronicle_photographs": "Chronicle photographs: %d",
     })
     with open(LANG, "w") as f:
         json.dump(lang, f, indent=2, ensure_ascii=False)

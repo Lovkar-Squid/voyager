@@ -1195,7 +1195,7 @@ LOOK_NAMES = {
 }
 
 
-def place_bed(s, p):
+def place_bed(s, p, reserved=()):
     """The astronomer's bed, indoors, near their desk.
 
     They live at the Observatory - a job whose whole point is the dark should not be walking home
@@ -1213,6 +1213,10 @@ def place_bed(s, p):
         return any((x, ay + h, z) in s.blocks for h in range(2, 7))
 
     taken = {(ex, ez) for (ex, ey, ez), _eid, _yaw, _pitch, _extra in s.entities if ey == ay}
+    # squares the AI stands on - the sitter's mark, the photographer's, the instrument - stay clear,
+    # and so does whatever the caller reserves (the Photo Booth keeps its whole studio line free)
+    taken |= {(tx, tz) for (tx, ty, tz) in s.tags if ty == ay}
+    taken |= set(reserved)
 
     def free(x, z):
         return ((x, ay, z) not in s.blocks and (x, ay + 1, z) not in s.blocks

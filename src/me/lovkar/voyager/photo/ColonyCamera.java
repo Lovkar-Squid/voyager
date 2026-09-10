@@ -96,6 +96,15 @@ public final class ColonyCamera {
         }
     }
 
+    /** Is the film in the camera black-and-white (or Game Boy)? A colour print is worth more. */
+    public static boolean isBlackAndWhite(final ItemStack camera) {
+        try {
+            return available() && me.lovkar.voyager.compat.ExposureCamera.fittingsOf(camera).blackAndWhite();
+        } catch (final Throwable exposureChanged) {
+            return false;
+        }
+    }
+
     /** Does the camera have a flash fitted and switched on? */
     public static boolean hasFlash(final ItemStack camera) {
         try {
@@ -109,14 +118,64 @@ public final class ColonyCamera {
 
     /** Open the shutter: where the camera is, what is fitted, who is in front of it. Null on failure. */
     public static Object open(final ServerLevel level, final Entity eye, final ItemStack camera) {
+        return open(level, eye, camera, 0.0);
+    }
+
+    /**
+     * Open the shutter with the field of view widened or narrowed by hand - {@code fovScale} 1.0 is
+     * the plain camera, 1.5 takes in half again as much, 0 (or less) leaves it to the lens fitted.
+     * The chronicle uses it to fit a whole building in from across the street.
+     */
+    public static Object open(final ServerLevel level, final Entity eye, final ItemStack camera,
+                              final double fovScale) {
         if (!available()) {
             return null;
         }
         try {
-            return me.lovkar.voyager.compat.ExposureCamera.open(level, eye, camera);
+            return me.lovkar.voyager.compat.ExposureCamera.open(level, eye, camera, fovScale);
         } catch (final Throwable exposureChanged) {
             complain(exposureChanged);
             return null;
+        }
+    }
+
+    // ------------------------------------------------------------------ albums
+
+    /** An Exposure album with room to write in it (not a signed volume). */
+    public static boolean isOpenAlbum(final ItemStack stack) {
+        try {
+            return available() && me.lovkar.voyager.compat.ExposureAlbums.isOpenAlbum(stack);
+        } catch (final Throwable exposureChanged) {
+            return false;
+        }
+    }
+
+    /** Index of the first free page, or -1 when the album is full or is not an album. */
+    public static int freeAlbumPage(final ItemStack album) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureAlbums.freePage(album) : -1;
+        } catch (final Throwable exposureChanged) {
+            return -1;
+        }
+    }
+
+    /** Paste a photograph into the album's first free page with a note. False if it would not fit. */
+    public static boolean pasteInAlbum(final ItemStack album, final ItemStack photograph, final String note) {
+        try {
+            return available() && me.lovkar.voyager.compat.ExposureAlbums.paste(album, photograph, note);
+        } catch (final Throwable exposureChanged) {
+            complain(exposureChanged);
+            return false;
+        }
+    }
+
+    /** Sign a finished album; hands back the signed volume, or the album unchanged on failure. */
+    public static ItemStack signAlbum(final ItemStack album, final String title, final String author) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureAlbums.sign(album, title, author) : album;
+        } catch (final Throwable exposureChanged) {
+            complain(exposureChanged);
+            return album;
         }
     }
 

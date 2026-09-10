@@ -63,6 +63,29 @@ def one(look, lv, known, pack_dir):
     if len(s.entities) != 1:
         print("!! expected exactly one camera stand:", s.name, s.entities)
         ok = False
+    # the marks the AI stands on must be free squares with a floor, and the sitter must be in
+    # front of the photographer with nothing but the tripod's square between them
+    marks = {}
+    for pos, names in s.tags.items():
+        for name in ("studio", "sitter", "photographer"):
+            if name in names:
+                marks[name] = pos
+    for name in ("sitter", "photographer"):
+        if name not in marks:
+            print(f"!! no {name} mark:", s.name)
+            ok = False
+        elif not standable(s, *marks[name]) or any(e[0] == marks[name] for e in s.entities):
+            print(f"!! the {name} mark is not a free square:", s.name, marks[name])
+            ok = False
+    if "sitter" in marks and "photographer" in marks and "studio" in marks:
+        (sx, sy, sz), (px, py, pz), (cx_, cy_, cz_) = marks["sitter"], marks["photographer"], marks["studio"]
+        if not (sx == px == cx_ and sy == py == cy_ and sz < cz_ < pz):
+            print("!! studio marks out of line (sitter, tripod, photographer):", s.name, marks)
+            ok = False
+        for z in range(sz + 1, pz):
+            if (sx, sy, z) in s.blocks or (sx, sy + 1, z) in s.blocks:
+                print("!! something stands between the sitter and the photographer:", s.name, (sx, sy, z))
+                ok = False
     (x0, y0, z0), (x1, y1, z1) = s.bounds()
     (bx0, by0, bz0), (bx1, by1, bz1) = BOX
     if not (bx0 <= x0 and x1 <= bx1 and bz0 <= z0 and z1 <= bz1 and y1 - y0 + 1 <= by1 - by0 + 1):

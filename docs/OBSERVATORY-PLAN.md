@@ -1118,3 +1118,85 @@ colony's film actually fills up and the darkroom recipes have something to devel
   camera with them, and shoots a real night-sky photograph there for a better plate.
 - **A night escort.** An Observatory setting that names a guard tower; its guard walks out with the
   astronomer and stands watch until dawn (`setRallyLocation` / guard task settings, to investigate).
+
+## 18. Phase 5 — the Photo Booth earns its keep: sitters who pay, and the colony chronicle (10 Sep 2026, `alpha.14`)
+
+Marko, this morning: *the photographer works by day and can photograph other colonists and, say,
+document the colony's development; and visitors could come in to be photographed, and you get
+revenue for the Trade Post.* The design doc had both under "Visitor Vanity" and "Portraiture"
+(`docs/OBSERVATORY.md` §4); this is them built, with one change of mind about coupling.
+
+### 18.1 Trade Post without linking Trade Post
+
+Trade Post keeps the colony's balance as **one statistic on MineColonies' own statistics
+manager** — `current_balance`, in value units, a Trade Coin being `tradeCoinValue` of them (1000
+by default). Its Marketplace, Resort and thrift shop all read and write that number, and its own
+vacation income is credited exactly the way we now do it:
+
+```java
+colony.getStatisticsManager().incrementBy("current_balance", amount, colony.getDay());
+```
+
+So paying the colony is a MineColonies API call, guarded by `ModList.isLoaded("mctradepost")`, and
+the only thing borrowed from Trade Post is the coin value, read by reflection from `MCTPConfig`
+with 1000 as the fallback (`compat/TradePostLedger`). Nothing of theirs is on our classpath, the
+Space Gallery question in §6 answers itself, and a pack without Trade Post loses nothing but the
+money: the visitor still sits, and the print goes on the shelf instead.
+
+### 18.2 Visitors come in for a portrait (`photo/VisitorSitting`)
+
+MineColonies' visitors are a small state machine on the entity (IDLE, WANDERING, SITTING, COMBAT)
+that MineColonies leaves open — Trade Post sends them shopping by adding transitions to it. We do
+the same. Every colony tick the Photo Booth (level 2 and up, with a photographer and a camera on
+the shelf) gives each visitor who does not have it yet the idea of a portrait: from IDLE or
+WANDERING, by day, roughly once in ten thoughts, if nobody else has the chair, the visitor **books
+the sitting**, walks to the **sitter's mark** in front of the gallery wall, stands there looking at
+the photographer, and waits — a minute at most. A booked sitter outranks the bench: the
+photographer drops what they were about to craft, takes the camera to the **photographer's mark**
+behind the tripod, and shoots. The visitor pays and leaves with the print (the negative stays on
+the roll for the darkroom); the colony's balance goes up; `portraits_sold` ticks in the building's
+statistics; the chat says who bought what for how much. One sitting per visit, one sitter at a
+time, a booking nobody turned up for is dropped after a couple of minutes, and a photographer who
+cannot come (no camera, night without a flash) lets the visitor go rather than keep them standing.
+
+Price: half a coin plus a quarter per level, half again for colour — one coin for a
+black-and-white portrait at level 2, nearly two for colour at level 5.
+
+**The studio got marks.** Three tagged squares in a line: `sitter` (in front of the gallery wall,
+which is the backdrop), `studio` (the tripod), `photographer` (behind it). The validator now
+insists on all three being free, in line, with nothing standing between sitter and photographer;
+the bed search keeps two squares either side of that line clear (one, in the smallest booth), and
+the level-1 studio grew a block wider to make room. The tripod itself is excluded from the ray
+cast, so it is never in the picture even though the photographer shoots through its square.
+
+### 18.3 The colony chronicle (`colony/ChronicleHook`, the album)
+
+MineColonies posts `BuildingConstructionModEvent` on its own event bus when a builder finishes a
+work order. For a BUILD or an UPGRADE, every Photo Booth in that colony is told, and the building
+joins the **chronicle queue** (persisted). When the bench is quiet the photographer picks a
+**viewpoint**: from the building's corners, the eight compass points at a distance that takes the
+whole facade in, on standable ground within a few blocks of the building's own level, scored by
+climb and by the walk from where they stand. They walk out, turn to the building's centre exactly
+(body and head — MineColonies' look control turns gradually and only the head, and a photograph
+needs the whole citizen pointed the right way this tick), and expose with the field of view widened
+just enough to fit the building (`ColonyCamera.open(..., fovScale)` — the lens is overruled for
+this one shot, never narrowed). The print is titled *Town Hall, level 3 (day 12)* and goes into
+**the album**: an Exposure album on the shelf, first free page, with the same line as the note.
+When the sixteenth page fills, the album is **signed** — *Chronicle of Riverbend, vol. II*, by the
+photographer — which makes it Exposure's finished, un-editable volume, and the next chronicle
+photograph asks for a new album (which the photographer can, of course, make). A building torn
+down before its turn is dropped from the queue; one that cannot be reached is skipped rather than
+stall the album.
+
+### 18.4 Order of the day
+
+The photographer's `decide()` now runs: a sitter at the mark → the shoot, before anything; else
+the bench (`AbstractEntityAICrafting.decide()`); else, if that came back IDLE, the chronicle (at
+most one building a minute) or, failing that, an idle portrait of whoever is nearby (at most one
+every five minutes).
+
+### 18.5 Still open
+
+- The lookout and the night escort for the astronomer (§17.6), next.
+- A stat line for the money itself (`earned` is persisted; the townhall stats window shows counts).
+- Group portraits, portraits at home for happiness (§4 of the design doc).

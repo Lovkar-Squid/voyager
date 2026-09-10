@@ -214,6 +214,8 @@ public class Voyager {
         modEventBus.addListener(FMLCommonSetupEvent.class, event -> event.enqueueWork(() -> {
             lendVoiceLines();
             registerInteractions();
+            // The chronicle listens for finished buildings on MineColonies' own event bus.
+            me.lovkar.voyager.colony.ChronicleHook.install();
         }));
         // The night sky, read out of datapacks rather than out of anybody's classes. Registered on
         // the GAME bus, not the mod bus: reload listeners and commands are server-side events.
@@ -223,7 +225,7 @@ public class Voyager {
         if (FMLEnvironment.dist.isClient()) {
             VoyagerClient.init(modEventBus);
         }
-        LOGGER.info("Voyager 0.3.0-alpha.13 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
+        LOGGER.info("Voyager 0.3.0-alpha.14 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
     }
 
     /**

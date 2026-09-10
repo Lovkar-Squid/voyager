@@ -104,6 +104,11 @@ public final class ExposureCamera {
                            Set<String> filters, boolean flash, int stops) {
 
         public static final Fittings PLAIN = new Fittings(false, false, 1.0, Set.of(), false, 0);
+
+        /** The same camera pointed through a different field of view - the lens is overruled. */
+        public Fittings withFov(final double scale) {
+            return new Fittings(blackAndWhite, sensitive, scale, filters, flash, stops);
+        }
     }
 
     /** Read the fittings off a camera item; a plain camera if it is not one. */
@@ -236,6 +241,9 @@ public final class ExposureCamera {
                 if (to.dot(forward) <= 0.0) {
                     continue;                                   // behind the camera
                 }
+                if (isCameraStand(other)) {
+                    continue;                                   // the tripod is not in the picture
+                }
                 final MapColor[] tones = tones(other);
                 sitters.add(new Sitter(other, other.getBoundingBox(), tones[0], tones[1]));
             }
@@ -247,8 +255,21 @@ public final class ExposureCamera {
         }
     }
 
+    /** Exposure's camera stand - the studio's own tripod, which stands between sitter and lens. */
+    private static boolean isCameraStand(final Entity entity) {
+        final ResourceLocation type = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+        return type != null && type.getPath().contains("camera_stand");
+    }
+
     public static Shot open(final ServerLevel level, final Entity eye, final ItemStack camera) {
         return new Shot(level, eye, fittingsOf(camera));
+    }
+
+    /** As above, with the field of view set by hand when {@code fovScale} is positive. */
+    public static Shot open(final ServerLevel level, final Entity eye, final ItemStack camera,
+                            final double fovScale) {
+        final Fittings fittings = fittingsOf(camera);
+        return new Shot(level, eye, fovScale > 0.0 ? fittings.withFov(fovScale) : fittings);
     }
 
     /**

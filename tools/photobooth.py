@@ -49,9 +49,10 @@ def frame(size="medium", facing="north"):
 def studio(s, p, x0, z0, x1, z1, y, height, level, roofer=flat_roof):
     """The room the sitter walks into: a lit floor, a gallery wall and the colony's camera stand.
 
-    The Photographer does not work here - a colonist cannot take a photograph, and pretending
-    otherwise would be the one dishonest thing in this building. The studio is for the player: the
-    camera stand is theirs to use, and the walls are where the colony's prints end up.
+    Three marks on the floor, tagged so the AI and the builder agree: ``studio`` is the tripod's
+    square, ``sitter`` the mark in front of the gallery wall where a visitor stands for their
+    portrait, ``photographer`` the square behind the tripod the photographer shoots from. The
+    gallery wall is the backdrop; the camera stand is also the player's to use.
     """
     s.box(x0, y, z0, x1, y, z1, p["floor"])
     for yy in range(y + 1, y + height):
@@ -92,8 +93,12 @@ def studio(s, p, x0, z0, x1, z1, y, height, level, roofer=flat_roof):
             s.set(x0 + 1, y + 2, (z0 + z1) // 2 + dz, frame("small", "east"))
             s.set(x1 - 1, y + 2, (z0 + z1) // 2 + dz, frame("small", "west"))
 
-    # The studio floor, where the camera stand goes. Tagged so the AI and the builder agree.
-    s.tag(cx, y + 1, (z0 + z1) // 2 + 1, "studio")
+    # The studio floor: the tripod's square, the sitter's mark before the gallery wall, and the
+    # photographer's square behind the tripod. Tagged so the AI and the builder agree.
+    mid = (z0 + z1) // 2
+    s.tag(cx, y + 1, mid + 1, "studio")
+    s.tag(cx, y + 1, z0 + 2, "sitter")
+    s.tag(cx, y + 1, min(mid + 2, z1 - 1), "photographer")
 
 
 def _booth(look, level):
@@ -105,7 +110,7 @@ def _booth(look, level):
     roofer = pitched if look in ("keep", "sandcourt") else flat_roof
 
     if level == 1:
-        studio(s, p, -3, -4, 3, 1, y, 5, level, roofer=roofer)
+        studio(s, p, -4, -4, 4, 1, y, 5, level, roofer=roofer)
     elif level == 2:
         studio(s, p, -4, -5, 4, 1, y, 5, level, roofer=roofer)
         darkroom_at(s, p, 5, -5, 7, -3, y)
@@ -143,9 +148,27 @@ def place_camera(s):
 
 
 def place_bed(s, p):
-    """The photographer sleeps at the booth, the way the astronomer sleeps at the Observatory."""
+    """The photographer sleeps at the booth, the way the astronomer sleeps at the Observatory.
+
+    Never on the studio line: the squares from the sitter's mark to the photographer's are the
+    picture, and a bed in the picture is a bed in every portrait.
+    """
     from observatory import place_bed as put
-    return put(s, p)
+    marks = {n: pos for pos, names in s.tags.items() for n in names if n in ("sitter", "photographer")}
+    line = set()
+    if "sitter" in marks and "photographer" in marks:
+        (sx, _sy, sz), (_px, _py, pz) = marks["sitter"], marks["photographer"]
+        # the line itself and the squares either side of it: a bed at the edge of the frame is
+        # still a bed in the picture. Two squares either side where the room allows, one where
+        # it does not (the smallest booth).
+        # (the photographer's own row is behind the lens, so it is allowed)
+        for width in (2, 1):
+            line = {(sx + dx, z) for z in range(min(sz, pz), max(sz, pz))
+                    for dx in range(-width, width + 1)}
+            if put(s, p, reserved=line):
+                return True
+        return False
+    return put(s, p, reserved=line)
 
 
 LOOKS = {look: (lambda lv, _l=look: _booth(_l, lv)) for look in LOOKS_PAL}
