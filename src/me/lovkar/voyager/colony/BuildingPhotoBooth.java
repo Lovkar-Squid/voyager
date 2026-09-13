@@ -627,10 +627,43 @@ public class BuildingPhotoBooth extends AbstractBuilding {
         return tag;
     }
 
-    /** The Photographer's recipes: everything Exposure makes, plus what the darkroom teaches. */
+    /**
+     * The tag that says what a Photographer is allowed to learn.
+     *
+     * <p>Data, not code, so a pack that adds another camera mod can hand him its film without
+     * touching the jar. Ships as {@code data/voyager/tags/item/photographer_product.json} with
+     * every entry optional, because Exposure is not a hard dependency.</p>
+     */
+    public static final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> PHOTOGRAPHER_PRODUCT =
+            net.minecraft.tags.ItemTags.create(
+                    net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(
+                            Voyager.MODID, "photographer_product"));
+
+    /**
+     * The Photographer's recipes: cameras, film, frames, albums - and nothing else.
+     *
+     * <p>A plain {@link AbstractCraftingBuildingModule.Crafting} is MineColonies' <i>general</i>
+     * crafter: it accepts any recipe a player cares to teach it, which is how a photographer ends
+     * up making planks and stone bricks and standing in for the Sawmill. Every stock crafter that
+     * has a trade narrows this - the Sawmill checks its own tag and then counts wood among the
+     * inputs, the Stonemason does the same for stone - and so does this one. Wood belongs to the
+     * Sawmill, stone to the Stonemason; what belongs here is what comes out of a darkroom.</p>
+     *
+     * <p>The test is on the <b>product</b>, not the ingredients: a photograph frame is sticks and
+     * glass, and judging it by what goes in would hand it straight back to the Sawmill.</p>
+     */
     public static class CraftingModule extends AbstractCraftingBuildingModule.Crafting {
         public CraftingModule(final JobEntry jobEntry) {
             super(jobEntry);
+        }
+
+        @Override
+        public boolean isRecipeCompatible(final @NotNull com.minecolonies.api.crafting.IGenericRecipe recipe) {
+            if (!super.isRecipeCompatible(recipe)) {
+                return false;
+            }
+            final net.minecraft.world.item.ItemStack made = recipe.getPrimaryOutput();
+            return made != null && !made.isEmpty() && made.is(PHOTOGRAPHER_PRODUCT);
         }
     }
 }

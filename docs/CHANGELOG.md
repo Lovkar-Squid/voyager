@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.2 - 2026-09-13 - the Photographer sticks to photography
+
+- **Fixed: the Photographer would learn any recipe at all** - planks, stone bricks, walls, chests,
+  anything a player cared to teach him. His crafting module was MineColonies' *general* crafter, the
+  kind meant for a hut with no trade of its own, so the Photo Booth quietly stood in for the Sawmill
+  and the Stonemason. He now learns only recipes whose **product** is in the item tag
+  `voyager:photographer_product`: cameras, film, photograph frames, albums, the lightroom, the
+  camera stand and the interplanar projector. Wood goes back to the Sawmill and stone to the
+  Stonemason.
+- The list is a **tag**, not code, so a pack that adds another camera mod can hand the Photographer
+  its film by adding to it - no jar edit.
+- The test is on the product rather than the ingredients on purpose: a photograph frame is sticks
+  and glass, and judged by what goes in it would belong to the Sawmill.
+- **Existing colonies:** the check runs when a recipe is *taught*, so anything your Photographer
+  learned before this update stays on his list until you remove it in his Recipes tab.
+
 ## 0.3.1 - 2026-09-10 - hotfix: worlds without Exposure load again
 
 - **Fixed: a world without Exposure would not load with 0.3.0** ("Errors in currently selected data

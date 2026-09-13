@@ -1,0 +1,17 @@
+{
+  "values": [
+    { "id": "exposure:camera",                                 "required": false },
+    { "id": "exposure:camera_stand",                           "required": false },
+    { "id": "exposure:album",                                  "required": false },
+    { "id": "exposure:black_and_white_film",                   "required": false },
+    { "id": "exposure:color_film",                             "required": false },
+    { "id": "exposure:high_sensitivity_black_and_white_film",  "required": false },
+    { "id": "exposure:high_sensitivity_color_film",            "required": false },
+    { "id": "exposure:photograph_frame",                       "required": false },
+    { "id": "exposure:glass_photograph_frame",                 "required": false },
+    { "id": "exposure:lightroom",                              "required": false },
+    { "id": "exposure:interplanar_projector",                  "required": false },
+    { "id": "exposure:photograph",                             "required": false },
+    { "id": "exposure:stacked_photographs",                    "required": false }
+  ]
+}
