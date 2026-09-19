@@ -190,6 +190,10 @@ public class Voyager {
                             .setBuildingViewProducer(() -> EmptyView::new)
                             .setRegistryName(PHOTOBOOTH_ID)
                             .addBuildingModuleProducer(me.lovkar.voyager.colony.PhotoBoothModules.WORK)
+                            // the same bed, counted: without a WorkAtHomeBuildingModule on the
+                            // building MineColonies raises no housing for the photographer who
+                            // sleeps here, and the colony reports itself full one citizen early
+                            .addBuildingModuleProducer(me.lovkar.voyager.colony.PhotoBoothModules.HOME)
                             .addBuildingModuleProducer(me.lovkar.voyager.colony.PhotoBoothModules.CRAFT)
                             .addBuildingModuleProducer(BuildingModules.SETTINGS_CRAFTER_RECIPE)
                             .addBuildingModuleProducer(BuildingModules.CRAFT_TASK_VIEW)

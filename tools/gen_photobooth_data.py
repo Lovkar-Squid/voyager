@@ -94,7 +94,7 @@ def main():
             json.dump(recipe, f, indent=2)
 
     with open(f"{DATA}/researches/effects/blockhutphotobooth.json", "w") as f:
-        json.dump({"effect": True, "levels": [1.0]}, f, indent=2)
+        json.dump({"effect": True, "levels": [5.0]}, f, indent=2)
     with open(f"{DATA}/researches/technology/photobooth.json", "w") as f:
         json.dump(UNLOCK, f, indent=2)
 

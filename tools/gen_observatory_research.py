@@ -48,7 +48,7 @@ def main():
                 print("removed", os.path.relpath(stale, DATA))
 
     with open(f"{DATA}/effects/blockhutobservatory.json", "w") as f:
-        json.dump({"effect": True, "levels": [1.0]}, f, indent=2)
+        json.dump({"effect": True, "levels": [5.0]}, f, indent=2)
     with open(f"{DATA}/technology/observatory.json", "w") as f:
         json.dump(UNLOCK, f, indent=2)
 

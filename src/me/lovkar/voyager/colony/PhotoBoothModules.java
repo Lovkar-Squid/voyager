@@ -29,6 +29,16 @@ public final class PhotoBoothModules {
                     () -> new BuildingPhotoBooth.CraftingModule(Voyager.PHOTOGRAPHER_JOB.get()),
                     () -> CraftingModuleView::new);
 
+    /**
+     * The housing slot, so the colony counts the photographer's bed. See
+     * {@link PhotoBoothHomeModule} - it hires nobody; it exists to be counted.
+     */
+    public static final BuildingEntry.ModuleProducer<PhotoBoothHomeModule, WorkerBuildingModuleView> HOME =
+            new BuildingEntry.ModuleProducer<>("photobooth_home",
+                    () -> new PhotoBoothHomeModule(Voyager.PHOTOGRAPHER_JOB.get(),
+                            Skill.Creativity, Skill.Dexterity, BuildingPhotoBooth::crewSize),
+                    null);
+
     private PhotoBoothModules() {
     }
 }

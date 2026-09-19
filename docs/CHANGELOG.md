@@ -1,5 +1,34 @@
-# Changelog
+﻿# Changelog
 
+## 0.3.4 - 2026-09-19 - the Observatory and the Photo Booth can be upgraded
+
+- **Fixed: both huts were stuck at level 1.** Their unlock research was worth `1.0`, and MineColonies
+  reads that number twice - below 1 the hut cannot be built at all, and a hut whose level has caught
+  up with it cannot be raised any further (`AbstractBuilding.requestUpgrade`). So the research
+  unlocked the building and locked it in the same breath, and the Builder answered *"You have to
+  unlock the research to upgrade this building"* with no research left to do. Both effects are worth
+  **5.0** now, like every hut in MineColonies itself and like the Departure Point. The blueprints for
+  levels 2-5 were in the mod all along.
+- **Fixed: the Photo Booth did not count as housing.** A worker who sleeps at their workplace gives
+  up their bed in a house and MineColonies raises the colony's ceiling by one to make up for it -
+  but only for a building that has beds **and** a `WorkAtHomeBuildingModule`. The photographer's
+  module has to extend `CraftingWorkerBuildingModule` (the crafting AI casts to it), and Java has no
+  second parent, so the Photo Booth had the bed and the sleeper but not the marker: hiring a
+  photographer quietly cost the colony one citizen, and it reported no room for anybody new while a
+  house had a free bed. It now carries `PhotoBoothHomeModule`, a work-at-home module that hires
+  nobody, creates no resolvers and exists to be counted. The Observatory was never affected - the
+  astronomer is not a crafter, so it uses MineColonies' own class.
+- **Existing colonies:** nothing to do. The research you have finished is worth five levels the
+  moment the world loads.
+- Verified headless before release (`voygate`, 55 checks): a colony from nothing, both researches
+  finished, every hut walked from level 1 to 5 and refused at 6, and the colony's ceiling read before
+  and after each worker is hired.
+
+## 0.3.3 - 2026-09-16 - the Observatory and the Photo Booth can be crafted
+
+- **Fixed: neither hut block had a crafting recipe** - the only way to get one was the creative tab.
+  They are made like the Departure Point now: eight planks around a gold building scepter, with a
+  **spyglass** in the middle for the Observatory and an **item frame** for the Photo Booth.
 ## 0.3.2 - 2026-09-13 - the Photographer sticks to photography
 
 - **Fixed: the Photographer would learn any recipe at all** - planks, stone bricks, walls, chests,
