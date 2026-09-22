@@ -1,4 +1,22 @@
-﻿# Changelog
+# Changelog
+
+## 0.3.5 - 2026-09-23 - the photographer gets his day back
+
+- **Fixed: at level 2 the studio ate the whole day.** Every visitor in the colony thinks about a
+  portrait every fifteen seconds and takes one about one time in ten; a sitter standing at the mark
+  outranks everything else the photographer could be doing; and nothing anywhere said *enough for
+  today*. With a tavern full of visitors that adds up to a man who never leaves the studio - so the
+  colony chronicle, which is the photographer's actual work and what the album on the shelf is made
+  of, stood still. The studio now has a day's quota by level (**2** sittings at level 2, then 3, 5
+  and 8), a quiet spell after each print while it is developed (2.5 in-game hours at level 2, down
+  to 1 hour at level 5, where there is a darkroom hand), and it closes to new sitters while the
+  chronicle is behind - two buildings owed a photograph, or one that has been waiting two in-game
+  hours. A visitor who books and never turns up now leaves a short quiet spell instead of a free
+  chair, so the next one does not walk straight in.
+- The hut says so itself: the Photo Booth's description - what a talking colonist reads out when you
+  ask about the studio - now names the day's quota and how many sittings it has taken today.
+- Checked headless on the test server (`voygate`, 75 checks): the quota, the quiet spell, the day
+  rolling over, the no-show, and the chronicle closing and re-opening the door.
 
 ## 0.3.4 - 2026-09-19 - the Observatory and the Photo Booth can be upgraded
 

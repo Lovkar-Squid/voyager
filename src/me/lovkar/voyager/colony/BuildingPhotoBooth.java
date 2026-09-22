@@ -67,10 +67,20 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     public static final String TAG_PHOTOGRAPHER = "photographer";
     /** A booking nobody showed up for is dropped after this long. */
     private static final long BOOKING_TIMEOUT = 3000L;
+    /**
+     * How long a building may wait for its chronicle photograph before the studio stops taking
+     * sitters. Two in-game hours: long enough that one queued picture does not close the door,
+     * short enough that the photographer goes out the same morning.
+     */
+    private static final long CHRONICLE_PATIENCE = 2000L;
+    /** Quiet ticks after a sitter walked out or never came, so the next one does not walk straight in. */
+    private static final long QUIET_AFTER_A_MISS = 600L;
     /** Pages in an Exposure album; a full one is signed as a volume. */
     private static final int ALBUM_PAGES = 16;
 
     private static final String NBT_SOLD = "portraits_sold";
+    private static final String NBT_TODAY = "portraits_today";
+    private static final String NBT_SITTINGS_DAY = "sittings_day";
     private static final String NBT_EARNED = "earned";
     private static final String NBT_VOLUMES = "volumes";
     private static final String NBT_CHRONICLE = "chronicle";
@@ -113,9 +123,16 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     private boolean cameraSeen;
     private int portraitsSold;
     private long earned;
+    /** Paid sittings taken today, and the colony day they were taken on. */
+    private int portraitsToday;
+    private int sittingsDay = -1;
+    /** No new sitter before this game time: the darkroom is busy with the last print. */
+    private long quietUntil;
 
     // the chronicle
     private final List<ChronicleJob> chronicle = new ArrayList<>();
+    /** Game time the chronicle queue stopped being empty; 0 while there is nothing owed. */
+    private long chronicleSince;
     private int volumes;
     /** Work orders already photographed halfway, so each build gets one progress picture. */
     private final Set<Integer> halfwayShot = new HashSet<>();
@@ -187,7 +204,11 @@ public class BuildingPhotoBooth extends AbstractBuilding {
         final long now = colony.getWorld().getGameTime();
         if (sitterId != null && !sittingDone && now - bookedAt > BOOKING_TIMEOUT) {
             Voyager.LOGGER.debug("[Photo Booth] booking by visitor {} expired", sitterId);
+            noteSittingMissed(now);
             clearSitting();
+        }
+        if (chronicleSince == 0 && !chronicle.isEmpty()) {
+            chronicleSince = now;                  // queued before a restart: the clock starts now
         }
         if (getBuildingLevel() >= 1 && ColonyCamera.available()) {
             watchTheBuilders(colony);
@@ -218,10 +239,99 @@ public class BuildingPhotoBooth extends AbstractBuilding {
 
     // ------------------------------------------------------------------ sittings
 
-    /** Level two, a photographer on the books, and a camera seen on the shelf. */
+    /**
+     * Level two, a photographer on the books, a camera seen on the shelf - and the studio not
+     * already booked out for the day.
+     *
+     * <p>A photographer's work is the colony, not the chair: he walks out to photograph buildings
+     * as they go up, and that is what the album on the shelf is made of. Visitors used to be able
+     * to take the whole of it. Any visitor in the colony thinks about a portrait every fifteen
+     * seconds, a sitter at the mark outranks everything else the photographer could be doing, and
+     * nothing anywhere said "enough for today" - so at level two, with a tavern full of visitors,
+     * the man never left the studio. Now the studio takes {@link #sittingsPerDay()} sittings a day
+     * (two at level two, eight at level five), keeps a quiet spell between them while the print is
+     * developed, and closes the door altogether while buildings are standing there waiting to be
+     * photographed.</p>
+     */
     public boolean isOpenForSittings() {
         return getBuildingLevel() >= SITTINGS_LEVEL && cameraSeen && ColonyCamera.available()
-                && !getAllAssignedCitizen().isEmpty();
+                && !getAllAssignedCitizen().isEmpty()
+                && !sittingsThrottled(now(), getColony().getDay());
+    }
+
+    /** Paid sittings this studio takes in a day. A one-room studio takes two; the big one takes eight. */
+    public int sittingsPerDay() {
+        return switch (getBuildingLevel()) {
+            case 0, 1 -> 0;
+            case 2 -> 2;
+            case 3 -> 3;
+            case 4 -> 5;
+            default -> 8;
+        };
+    }
+
+    /**
+     * Quiet ticks after a sitting - the print has to be developed and the studio put straight, and
+     * it is in that gap that the photographer gets out of the door. Shorter in a bigger studio,
+     * where there is a darkroom hand and a second photographer.
+     */
+    public long sittingCooldown() {
+        return switch (getBuildingLevel()) {
+            case 2 -> 3000L;
+            case 3 -> 2400L;
+            case 4 -> 1800L;
+            default -> 1200L;
+        };
+    }
+
+    /** Sittings taken today (reset on the colony's own day counter). */
+    public int portraitsToday() {
+        return sittingsDay == getColony().getDay() ? portraitsToday : 0;
+    }
+
+    /**
+     * Is the studio closed to new sitters right now? The day's quota, the quiet spell after the
+     * last print, or a chronicle the photographer is behind on - any of the three shuts the door.
+     *
+     * <p>Takes the time and the day so a test can ask about tomorrow without waiting for it.</p>
+     */
+    public boolean sittingsThrottled(final long now, final int day) {
+        if (day == sittingsDay && portraitsToday >= sittingsPerDay()) {
+            return true;
+        }
+        if (now < quietUntil) {
+            return true;
+        }
+        return chronicleBehind(now);
+    }
+
+    /** Buildings waiting for their picture: two of them, or one that has waited two hours. */
+    public boolean chronicleBehind(final long now) {
+        if (chronicle.isEmpty()) {
+            return false;
+        }
+        return chronicle.size() >= 2 || (chronicleSince > 0 && now - chronicleSince >= CHRONICLE_PATIENCE);
+    }
+
+    /** A portrait was taken: it counts against the day, and the darkroom is busy for a while. */
+    public void noteSittingFinished(final long now, final int day) {
+        if (day != sittingsDay) {
+            sittingsDay = day;
+            portraitsToday = 0;
+        }
+        portraitsToday++;
+        quietUntil = now + sittingCooldown();
+        markDirty();
+    }
+
+    /** Nobody sat after all. It costs the day nothing, but the chair is not filled again at once. */
+    public void noteSittingMissed(final long now) {
+        quietUntil = Math.max(quietUntil, now + QUIET_AFTER_A_MISS);
+    }
+
+    private long now() {
+        final IColony colony = getColony();
+        return colony == null || colony.getWorld() == null ? 0L : colony.getWorld().getGameTime();
     }
 
     /** The photographer's AI reports whether the shelf had a camera, so visitors know to come. */
@@ -280,6 +390,7 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     /** The visitor gave up, or left, or vanished. The chair is free. */
     public void cancelSitting(final IVisitorData visitor) {
         if (isBookedBy(visitor)) {
+            noteSittingMissed(now());
             clearSitting();
         }
     }
@@ -311,6 +422,7 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     public int completeSitting(final ItemStack print, final boolean colour, final ICitizenData photographer) {
         final IVisitorData visitor = sitterData();
         sittingDone = true;
+        noteSittingFinished(now(), getColony().getDay());
         if (visitor == null) {
             return 0;
         }
@@ -372,6 +484,9 @@ public class BuildingPhotoBooth extends AbstractBuilding {
         if (getBuildingLevel() >= 2) {
             sb.append("Visitors to the colony can sit for a portrait and pay for it - a black-and-white one costs about ")
                     .append(coins(portraitPrice(false))).append(", colour about ").append(coins(portraitPrice(true))).append(". ");
+            sb.append("The studio takes ").append(sittingsPerDay()).append(" sittings a day, no more - the rest of the day belongs to the colony chronicle");
+            final int today = portraitsToday();
+            sb.append(today == 0 ? "; none has been taken today. " : "; " + today + (today == 1 ? " has" : " have") + " been taken today. ");
         }
         if (portraitsSold > 0) {
             sb.append(portraitsSold).append(portraitsSold == 1 ? " portrait has" : " portraits have").append(" been sold so far, earning the colony about ")
@@ -450,6 +565,9 @@ public class BuildingPhotoBooth extends AbstractBuilding {
         // A finished building supersedes its own halfway picture if that was never taken.
         chronicle.removeIf(job -> job.pos().equals(built.getPosition())
                 && (job.phase().equals(which) || PHASE_DONE.equals(which)));
+        if (chronicle.isEmpty()) {
+            chronicleSince = now();
+        }
         chronicle.add(new ChronicleJob(built.getPosition(), level, getColony().getDay(), which));
         markDirty();
     }
@@ -518,6 +636,7 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     public void chronicleDone(final ChronicleJob job) {
         if (chronicle.remove(job)) {
             StatsUtil.trackStat(this, STAT_CHRONICLE, 1);
+            chronicleSince = chronicle.isEmpty() ? 0L : now();
             markDirty();
         }
     }
@@ -597,6 +716,8 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     public void deserializeNBT(final @NotNull HolderLookup.Provider provider, final CompoundTag tag) {
         super.deserializeNBT(provider, tag);
         portraitsSold = tag.getInt(NBT_SOLD);
+        portraitsToday = tag.getInt(NBT_TODAY);
+        sittingsDay = tag.contains(NBT_SITTINGS_DAY) ? tag.getInt(NBT_SITTINGS_DAY) : -1;
         earned = tag.getLong(NBT_EARNED);
         volumes = tag.getInt(NBT_VOLUMES);
         chronicle.clear();
@@ -616,6 +737,8 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     public CompoundTag serializeNBT(final @NotNull HolderLookup.Provider provider) {
         final CompoundTag tag = super.serializeNBT(provider);
         tag.putInt(NBT_SOLD, portraitsSold);
+        tag.putInt(NBT_TODAY, portraitsToday);
+        tag.putInt(NBT_SITTINGS_DAY, sittingsDay);
         tag.putLong(NBT_EARNED, earned);
         tag.putInt(NBT_VOLUMES, volumes);
         final ListTag list = new ListTag();
