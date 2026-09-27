@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.6 - 2026-09-27 - the photographer loads the film he was given
+
+- **Fixed: the photographer stopped taking pictures for good once his first roll was used up.** When
+  he runs out of film he asks the colony for a roll, and a courier brings it - but MineColonies hands
+  a delivered request to the worker himself, so the roll lands in the photographer's own pack, not on
+  the Photo Booth's shelf. He only ever looked on the shelf. So he set out - to the studio mark, or
+  towards a new building for the chronicle - took the camera up, found no film, put it back and
+  walked home again, over and over, without a word. And because he was already carrying a roll, the
+  colony never asked for another one. He now loads film from his own pack first and the shelf
+  second. (Until you update, a roll of film put on the Photo Booth's shelf gets him going again.)
+- **He checks for film before he sets out** - a camera *and* a roll to put in it - instead of finding
+  out at the viewpoint. With no film anywhere he asks for a roll, and the colony is told once a day,
+  the same way it is told about a missing camera.
+- When an outing is called off, the log says why (once a day for each reason), so a photographer who
+  never shoots is no longer a silent mystery.
+- The startup line in the log now reads the real version from the mod (it had said 0.3.2 ever since
+  0.3.2).
+- Built against MineColonies 1.1.1399, Structurize 1.0.833, BlockUI 1.0.212, Exposure 1.9.19 and
+  Trade Post 1.06.013, and every call into them was checked against those and the previous versions.
+  The headless test colony now hands the photographer his film the way a courier does: 0.3.5 walked
+  out and back all afternoon without a single picture, 0.3.6 photographed the new building for the
+  chronicle and then took a portrait; with no film at all it asks for a roll and stays home.
+
 ## 0.3.5 - 2026-09-23 - the photographer gets his day back
 
 - **Fixed: at level 2 the studio ate the whole day.** Every visitor in the colony thinks about a

@@ -255,7 +255,10 @@ public class Voyager {
         if (FMLEnvironment.dist.isClient()) {
             VoyagerClient.init(modEventBus);
         }
-        LOGGER.info("Voyager 0.3.2 loaded - the Departure Point, the Observatory and the Photo Booth are ready");
+        // The version from the mod's own metadata - a number typed in here went stale for three releases.
+        final String version = net.neoforged.fml.ModList.get().getModContainerById(MODID)
+                .map(c -> c.getModInfo().getVersion().toString()).orElse("?");
+        LOGGER.info("Voyager {} loaded - the Departure Point, the Observatory and the Photo Booth are ready", version);
     }
 
     /**

@@ -118,6 +118,10 @@ public class EntityAIWorkPhotographer
     private int walkAttempts;
     /** The day the colony was last told there is no camera on the shelf, so it is told once a day. */
     private long askedForCamera = Long.MIN_VALUE;
+    /** The day the colony was last told there is no film, so it is told once a day. */
+    private long askedForFilm = Long.MIN_VALUE;
+    /** Why an outing was called off, and the day it was last written to the log - once a day each. */
+    private final java.util.Map<String, Long> reasonLogged = new java.util.HashMap<>();
     /** The colony's camera while the photographer has it out of the rack. */
     private ItemStack camera = ItemStack.EMPTY;
     private LivingEntity subject;
@@ -278,6 +282,12 @@ public class EntityAIWorkPhotographer
         if (stock.isEmpty()) {
             return false;
         }
+        // And a roll to put in it. Without this the photographer walked out, took the camera up,
+        // found no film on the shelf and walked back - every time, without a word.
+        if (!ColonyCamera.hasFreeFrame(stock) && !filmAvailable()) {
+            askForFilm();
+            return false;
+        }
         // Daylight, or a flash: a photographer without either has the sense to wait for morning.
         // The day ends at 10500 here, before MineColonies starts sending workers to bed at 10600 -
         // a shoot begun then would be interrupted with the camera half raised.
@@ -400,21 +410,84 @@ public class EntityAIWorkPhotographer
                         worker.getCitizenData().getName());
             }
         }
-        for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
-            for (int slot = 0; slot < handler.getSlots(); slot++) {
-                final ItemStack stack = handler.getStackInSlot(slot);
-                if (!stack.isEmpty() && ColonyCamera.isFilmWithRoom(stack)) {
-                    final ItemStack roll = handler.extractItem(slot, 1, false);
-                    ColonyCamera.loadFilm(camera, roll);
-                    return ColonyCamera.hasFreeFrame(camera);
-                }
+        final ItemStack roll = takeFilm();
+        if (!roll.isEmpty()) {
+            ColonyCamera.loadFilm(camera, roll);
+            return ColonyCamera.hasFreeFrame(camera);
+        }
+        askForFilm();
+        return false;
+    }
+
+    /** The first roll with room on it in a handler, or -1. */
+    private static int filmSlot(final IItemHandler handler) {
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            final ItemStack stack = handler.getStackInSlot(slot);
+            if (!stack.isEmpty() && ColonyCamera.isFilmWithRoom(stack)) {
+                return slot;
             }
         }
+        return -1;
+    }
+
+    /**
+     * Is there a roll to load: in the photographer's own pack or on the shelf. The pack comes
+     * first because that is where MineColonies puts a delivered request - the film he asked for
+     * arrives in his pocket, not on the rack, and 0.3.5 only ever looked on the rack.
+     */
+    private boolean filmAvailable() {
+        if (filmSlot(worker.getItemHandlerCitizen()) >= 0) {
+            return true;
+        }
+        for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
+            if (filmSlot(handler) >= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** One roll with room: out of the pack if there is one there, otherwise off the shelf. */
+    private ItemStack takeFilm() {
+        final IItemHandler pack = worker.getItemHandlerCitizen();
+        int slot = filmSlot(pack);
+        if (slot >= 0) {
+            return pack.extractItem(slot, 1, false);
+        }
+        for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
+            slot = filmSlot(handler);
+            if (slot >= 0) {
+                return handler.extractItem(slot, 1, false);
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /** Ask the colony for a roll of film - and say so once a day, like the missing camera. */
+    private void askForFilm() {
         final Item filmItem = itemOrNull(FILM);
         if (filmItem != null) {
             checkIfRequestForItemExistOrCreateAsync(new ItemStack(filmItem));
         }
-        return false;
+        final long day = world.getGameTime() / 24000L;
+        if (askedForFilm != day) {
+            askedForFilm = day;
+            MessageUtils.format(Component.translatable("com.voyager.photo.no_film"))
+                    .sendTo(building.getColony()).forManagers();
+            Voyager.LOGGER.info("[Photo Booth] no film for the camera - {} has asked for a roll",
+                    worker.getCitizenData().getName());
+        }
+    }
+
+    /** An outing called off: written to the log once a day per reason, so a silent failure is not silent. */
+    private IAIState callOff(final String why) {
+        final long day = world.getGameTime() / 24000L;
+        final Long last = reasonLogged.put(why, day);
+        if (last == null || last != day) {
+            Voyager.LOGGER.info("[Photo Booth] {} called the {} off: {}", worker.getCitizenData().getName(),
+                    assignment.name().toLowerCase(java.util.Locale.ROOT), why);
+        }
+        return giveUp();
     }
 
     // ------------------------------------------------------------------ getting there
@@ -544,12 +617,12 @@ public class EntityAIWorkPhotographer
         camera = takeCamera();
         if (camera.isEmpty()) {
             lastShot = world.getGameTime();
-            return giveUp();
+            return callOff("no camera to take off the shelf");
         }
         if (!loadFilmIfNeeded()) {
             putCameraBack();
             lastShot = world.getGameTime();
-            return giveUp();
+            return callOff("no film to load");
         }
         holdCamera();
         worker.setRenderMetadata(JobPhotographer.META_CAMERA);
@@ -598,7 +671,7 @@ public class EntityAIWorkPhotographer
         if (film.length == 0 || shot == null) {
             putCameraBack();
             lastShot = world.getGameTime();
-            return giveUp();
+            return callOff("the camera would not open (Exposure said no)");
         }
         return Shoot.EXPOSE;
     }
