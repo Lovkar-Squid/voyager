@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.3.7 - 2026-09-27 - pick the film and the filter
+
+- **New: the Photo Booth's settings tab has Film and Filter**, so you decide what the colony's
+  photographs look like.
+  - **Film:** *whatever is on the shelf* (the default - what the booth has always done), black and
+    white, colour, or one of the two high-sensitivity rolls, which see in the dark. If the camera
+    holds a different kind, the photographer takes that roll out - its pictures stay on it - and puts
+    it on the shelf for later. With no roll of the chosen kind he asks the colony for one, and the
+    colony is told once a day which film is missing.
+  - **Filter:** *as fitted in the camera* (the default - nothing changes until you pick one), no
+    filter, red, orange, yellow, green, blue or sepia (brown glass); with Exposure: Expanded also
+    pencil sketch, outline, soft focus, mirror, faded and vivid. He fits it before every picture
+    from his pack or the shelf, and the filter that comes off goes on the shelf. One the booth has
+    not got is asked for, and he keeps taking pictures with what is fitted in the meantime.
+  - It is all real items in the real camera: take the camera off the shelf and the chosen roll and
+    filter are in it.
+- **Colour filters on black-and-white film work like real ones now.** The glass passes its own
+  colour and holds back the rest, so the greys shift while the picture keeps its brightness: red
+  darkens a blue sky against the land and lightens red brick, orange and yellow do the same more
+  gently, green lightens grass and leaves, and blue does the opposite of red. Before, the frame was
+  tinted and then turned grey, which mostly just made the whole picture lighter or darker - through
+  a red pane the sky and the grass came out the same grey. On colour film the glass tints the
+  picture, as before.
+- The log line for every photograph names the film and the filter it was taken on.
+- The recipe mode stays in the same tab. The booth has its own settings module for all three now
+  (MineColonies' crafter settings module could not hold the other two); a booth built before 0.3.7
+  keeps the recipe mode it had. The film and filter are saved by name, so a later version adding
+  choices, or Exposure: Expanded being removed, cannot quietly swap one filter for its neighbour -
+  a choice that is no longer offered goes back to the default.
+- Tested headless on the test server: colour film through red glass (the black-and-white roll next
+  to it left alone), black-and-white through Expanded's pencil filter (the red pane someone had
+  fitted taken off and put on the shelf), colour film chosen with only black and white on the shelf
+  (a roll asked for, no outing), and black-and-white through red and through yellow - the same view
+  photographed each time, so the greys could be compared: through red the sky now comes out
+  clearly darker than the grass. Then the settings across a restart: kept as they were set, the
+  recipe mode carried over from a booth saved by 0.3.6, and a filter from Expanded back to the
+  default once Expanded is gone.
+
 ## 0.3.6 - 2026-09-27 - the photographer loads the film he was given
 
 - **Fixed: the photographer stopped taking pictures for good once his first roll was used up.** When

@@ -195,7 +195,9 @@ public class Voyager {
                             // sleeps here, and the colony reports itself full one citizen early
                             .addBuildingModuleProducer(me.lovkar.voyager.colony.PhotoBoothModules.HOME)
                             .addBuildingModuleProducer(me.lovkar.voyager.colony.PhotoBoothModules.CRAFT)
-                            .addBuildingModuleProducer(BuildingModules.SETTINGS_CRAFTER_RECIPE)
+                            // the crafter's recipe mode AND the studio's film and filter, in one
+                            // settings module - see PhotoBoothModules.SETTINGS for why not two
+                            .addBuildingModuleProducer(me.lovkar.voyager.colony.PhotoBoothModules.SETTINGS)
                             .addBuildingModuleProducer(BuildingModules.CRAFT_TASK_VIEW)
                             .addBuildingModuleProducer(BuildingModules.BED)
                             .addBuildingModuleProducer(BuildingModules.MIN_STOCK)

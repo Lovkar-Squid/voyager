@@ -91,6 +91,28 @@ public class BuildingPhotoBooth extends AbstractBuilding {
     public static final String PHASE_DONE = "";
     public static final String PHASE_HALFWAY = "halfway";
 
+    /** The film setting ({@link me.lovkar.voyager.photo.StudioSettings#FILM}); "whatever is on the shelf" if unreadable. */
+    public String filmChoice() {
+        try {
+            final com.minecolonies.core.colony.buildings.modules.settings.StringSetting setting =
+                    getSetting(me.lovkar.voyager.photo.StudioSettings.FILM);
+            return setting == null ? me.lovkar.voyager.photo.StudioSettings.FILM_ANY : setting.getValue();
+        } catch (final Throwable noSettings) {
+            return me.lovkar.voyager.photo.StudioSettings.FILM_ANY;
+        }
+    }
+
+    /** The filter setting ({@link me.lovkar.voyager.photo.StudioSettings#FILTER}); "as fitted" if unreadable. */
+    public String filterChoice() {
+        try {
+            final com.minecolonies.core.colony.buildings.modules.settings.StringSetting setting =
+                    getSetting(me.lovkar.voyager.photo.StudioSettings.FILTER);
+            return setting == null ? me.lovkar.voyager.photo.StudioSettings.FILTER_CAMERA : setting.getValue();
+        } catch (final Throwable noSettings) {
+            return me.lovkar.voyager.photo.StudioSettings.FILTER_CAMERA;
+        }
+    }
+
     /** A building the chronicle still owes a photograph. */
     public record ChronicleJob(BlockPos pos, int level, int day, String phase) {
         public boolean halfway() {

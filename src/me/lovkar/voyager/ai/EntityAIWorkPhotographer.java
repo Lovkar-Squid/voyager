@@ -118,6 +118,8 @@ public class EntityAIWorkPhotographer
     private int walkAttempts;
     /** The day the colony was last told there is no camera on the shelf, so it is told once a day. */
     private long askedForCamera = Long.MIN_VALUE;
+    /** What the current picture is being taken on - film, and filter if any - for the log line. */
+    private String shotOn = "";
     /** The day the colony was last told there is no film, so it is told once a day. */
     private long askedForFilm = Long.MIN_VALUE;
     /** Why an outing was called off, and the day it was last written to the log - once a day each. */
@@ -284,7 +286,7 @@ public class EntityAIWorkPhotographer
         }
         // And a roll to put in it. Without this the photographer walked out, took the camera up,
         // found no film on the shelf and walked back - every time, without a word.
-        if (!ColonyCamera.hasFreeFrame(stock) && !filmAvailable()) {
+        if (!loadedFilmWanted(stock) && !filmAvailable()) {
             askForFilm();
             return false;
         }
@@ -395,19 +397,22 @@ public class EntityAIWorkPhotographer
      * photographer asks for one and puts the camera back.
      */
     private boolean loadFilmIfNeeded() {
-        if (ColonyCamera.hasFreeFrame(camera)) {
+        if (loadedFilmWanted(camera)) {
             return true;
         }
         if (ColonyCamera.hasFilm(camera)) {
-            final ItemStack full = ColonyCamera.ejectFilm(camera);
-            if (!full.isEmpty()) {
-                if (!InventoryUtils.addItemStackToProvider(building, full)
-                        && !InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), full)) {
-                    ColonyCamera.loadFilm(camera, full);     // nowhere to put it; it stays in the camera
-                    return false;
+            // A full roll - or, since the studio can be told which film to use, a roll of the
+            // wrong kind. It comes out with its pictures on it and waits on the shelf.
+            final boolean full = !ColonyCamera.hasFreeFrame(camera);
+            final ItemStack out = ColonyCamera.ejectFilm(camera);
+            if (!out.isEmpty()) {
+                if (!InventoryUtils.addItemStackToProvider(building, out)
+                        && !InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), out)) {
+                    ColonyCamera.loadFilm(camera, out);      // nowhere to put it; it stays in the camera
+                    return !full && ColonyCamera.hasFreeFrame(camera);
                 }
-                Voyager.LOGGER.info("[Photo Booth] {} put a full roll of film on the shelf",
-                        worker.getCitizenData().getName());
+                Voyager.LOGGER.info("[Photo Booth] {} put a {} roll of film on the shelf",
+                        worker.getCitizenData().getName(), full ? "full" : "half-used (not the film the studio wants)");
             }
         }
         final ItemStack roll = takeFilm();
@@ -419,15 +424,31 @@ public class EntityAIWorkPhotographer
         return false;
     }
 
-    /** The first roll with room on it in a handler, or -1. */
-    private static int filmSlot(final IItemHandler handler) {
+    /** The first roll with room on it in a handler - of the kind the studio wants, if it wants one - or -1. */
+    private int filmSlot(final IItemHandler handler) {
+        final ResourceLocation wanted = wantedFilm();
         for (int slot = 0; slot < handler.getSlots(); slot++) {
             final ItemStack stack = handler.getStackInSlot(slot);
-            if (!stack.isEmpty() && ColonyCamera.isFilmWithRoom(stack)) {
+            if (!stack.isEmpty() && ColonyCamera.isFilmWithRoom(stack)
+                    && (wanted == null || wanted.equals(BuiltInRegistries.ITEM.getKey(stack.getItem())))) {
                 return slot;
             }
         }
         return -1;
+    }
+
+    /** The roll the studio's film setting asks for, or null for whatever is on the shelf. */
+    private @Nullable ResourceLocation wantedFilm() {
+        return building == null ? null : me.lovkar.voyager.photo.StudioSettings.filmItem(building.filmChoice());
+    }
+
+    /** Is there a roll in this camera with a frame left, of the kind the studio wants? */
+    private boolean loadedFilmWanted(final ItemStack cam) {
+        if (!ColonyCamera.hasFreeFrame(cam)) {
+            return false;
+        }
+        final ResourceLocation wanted = wantedFilm();
+        return wanted == null || wanted.toString().equals(ColonyCamera.filmId(cam));
     }
 
     /**
@@ -465,18 +486,93 @@ public class EntityAIWorkPhotographer
 
     /** Ask the colony for a roll of film - and say so once a day, like the missing camera. */
     private void askForFilm() {
-        final Item filmItem = itemOrNull(FILM);
+        final Item filmItem = itemOrNull(me.lovkar.voyager.photo.StudioSettings.filmToRequest(building.filmChoice()));
         if (filmItem != null) {
             checkIfRequestForItemExistOrCreateAsync(new ItemStack(filmItem));
         }
         final long day = world.getGameTime() / 24000L;
         if (askedForFilm != day) {
             askedForFilm = day;
-            MessageUtils.format(Component.translatable("com.voyager.photo.no_film"))
+            final Component what = filmItem == null ? Component.literal("film") : new ItemStack(filmItem).getHoverName();
+            MessageUtils.format(Component.translatable("com.voyager.photo.no_film_kind", what))
                     .sendTo(building.getColony()).forManagers();
-            Voyager.LOGGER.info("[Photo Booth] no film for the camera - {} has asked for a roll",
-                    worker.getCitizenData().getName());
+            Voyager.LOGGER.info("[Photo Booth] no {} for the camera - {} has asked for a roll",
+                    what.getString(), worker.getCitizenData().getName());
         }
+    }
+
+    /** The day the colony was last told a filter is missing, so it is told once a day. */
+    private long askedForFilter = Long.MIN_VALUE;
+
+    /**
+     * Fit the filter the studio's filter setting asks for, from the pack or the shelf; the one that
+     * comes off goes on the shelf. "As fitted in the camera" leaves the camera alone - whatever a
+     * player put in it stays. A filter the booth does not have is asked for, and the picture is taken
+     * with what is fitted meanwhile: a missing pane is not a reason to stop taking photographs.
+     */
+    private void fitFilter() {
+        final String choice = building.filterChoice();
+        if (me.lovkar.voyager.photo.StudioSettings.FILTER_CAMERA.equals(choice)) {
+            return;
+        }
+        final ResourceLocation wanted = me.lovkar.voyager.photo.StudioSettings.filterItem(choice);
+        final String fitted = ColonyCamera.filterId(camera);
+        if (wanted == null ? fitted.isEmpty() : wanted.toString().equals(fitted)) {
+            return;                                             // already right
+        }
+        ItemStack next = ItemStack.EMPTY;
+        if (wanted != null) {
+            next = takeItem(wanted);
+            if (next.isEmpty()) {
+                final Item filterItem = itemOrNull(wanted);
+                if (filterItem != null) {
+                    checkIfRequestForItemExistOrCreateAsync(new ItemStack(filterItem));
+                    final long day = world.getGameTime() / 24000L;
+                    if (askedForFilter != day) {
+                        askedForFilter = day;
+                        MessageUtils.format(Component.translatable("com.voyager.photo.no_filter",
+                                new ItemStack(filterItem).getHoverName())).sendTo(building.getColony()).forManagers();
+                        Voyager.LOGGER.info("[Photo Booth] no {} for the camera - {} has asked for one",
+                                wanted, worker.getCitizenData().getName());
+                    }
+                }
+                return;
+            }
+        }
+        final ItemStack previous = ColonyCamera.setFilter(camera, next);
+        if (previous == null) {
+            if (!next.isEmpty() && !InventoryUtils.addItemStackToProvider(building, next)) {
+                InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), next);
+            }
+            return;                                             // Exposure would not have it
+        }
+        if (!previous.isEmpty() && !InventoryUtils.addItemStackToProvider(building, previous)) {
+            InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), previous);
+        }
+        Voyager.LOGGER.info("[Photo Booth] {} fitted {} to the camera{}", worker.getCitizenData().getName(),
+                next.isEmpty() ? "no filter" : wanted, previous.isEmpty() ? "" : " (took off " + previous.getItem() + ")");
+    }
+
+    /** One of an item: out of the pack first, then off the shelf; empty if there is none. */
+    private ItemStack takeItem(final ResourceLocation id) {
+        final Item item = itemOrNull(id);
+        if (item == null) {
+            return ItemStack.EMPTY;
+        }
+        final IItemHandler pack = worker.getItemHandlerCitizen();
+        for (int slot = 0; slot < pack.getSlots(); slot++) {
+            if (pack.getStackInSlot(slot).getItem() == item) {
+                return pack.extractItem(slot, 1, false);
+            }
+        }
+        for (final IItemHandler handler : InventoryUtils.getItemHandlersFromProvider(building)) {
+            for (int slot = 0; slot < handler.getSlots(); slot++) {
+                if (handler.getStackInSlot(slot).getItem() == item) {
+                    return handler.extractItem(slot, 1, false);
+                }
+            }
+        }
+        return ItemStack.EMPTY;
     }
 
     /** An outing called off: written to the log once a day per reason, so a silent failure is not silent. */
@@ -624,6 +720,9 @@ public class EntityAIWorkPhotographer
             lastShot = world.getGameTime();
             return callOff("no film to load");
         }
+        fitFilter();
+        final String filterNow = ColonyCamera.filterId(camera);
+        shotOn = ColonyCamera.filmId(camera) + (filterNow.isEmpty() ? "" : " through " + filterNow);
         holdCamera();
         worker.setRenderMetadata(JobPhotographer.META_CAMERA);
 
@@ -808,7 +907,7 @@ public class EntityAIWorkPhotographer
             }
         }
         incrementActionsDoneAndDecSaturation();
-        Voyager.LOGGER.info("[Photo Booth] {} took a photograph ({}, {})", name, done, id);
+        Voyager.LOGGER.info("[Photo Booth] {} took a photograph ({}, {}) on {}", name, done, id, shotOn);
         chronicleJob = null;
         viewpoint = null;
         viewTarget = null;

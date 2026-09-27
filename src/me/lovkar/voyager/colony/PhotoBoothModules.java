@@ -39,6 +39,20 @@ public final class PhotoBoothModules {
                             Skill.Creativity, Skill.Dexterity, BuildingPhotoBooth::crewSize),
                     null);
 
+    /**
+     * The booth's settings tab: recipe mode, film and filter - {@link PhotoBoothSettingsModule}.
+     *
+     * <p>ONE settings module on purpose: {@code AbstractBuilding.getSetting} only ever asks the
+     * <em>first</em> one, so a second would hide either these settings or the recipe mode the crafting
+     * AI reads. It replaces MineColonies' {@code SETTINGS_CRAFTER_RECIPE} on the booth, under an id of
+     * its own - module ids are global, and MineColonies' {@code craft_settings} is already taken.
+     * The module carries a booth's old recipe mode over from that id when it loads.</p>
+     */
+    public static final BuildingEntry.ModuleProducer<PhotoBoothSettingsModule,
+            com.minecolonies.core.colony.buildings.moduleviews.SettingsModuleView> SETTINGS =
+            new BuildingEntry.ModuleProducer<>("photobooth_settings", PhotoBoothSettingsModule::create,
+                    () -> com.minecolonies.core.colony.buildings.moduleviews.SettingsModuleView::new);
+
     private PhotoBoothModules() {
     }
 }

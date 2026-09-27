@@ -106,6 +106,34 @@ public final class ColonyCamera {
         }
     }
 
+    /** The id of the roll in the camera, or "" (no film, or Exposure changed under us). */
+    public static String filmId(final ItemStack camera) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureCamera.filmId(camera) : "";
+        } catch (final Throwable exposureChanged) {
+            return "";
+        }
+    }
+
+    /** The id of the filter over the lens, or "". */
+    public static String filterId(final ItemStack camera) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureCamera.filterId(camera) : "";
+        } catch (final Throwable exposureChanged) {
+            return "";
+        }
+    }
+
+    /** Fit a filter (empty = take it off); returns the one that was fitted, or empty. Null if it could not be done. */
+    public static @org.jetbrains.annotations.Nullable ItemStack setFilter(final ItemStack camera, final ItemStack filter) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureCamera.setFilter(camera, filter) : null;
+        } catch (final Throwable exposureChanged) {
+            complain(exposureChanged);
+            return null;
+        }
+    }
+
     /** Is the film in the camera black-and-white (or Game Boy)? A colour print is worth more. */
     public static boolean isBlackAndWhite(final ItemStack camera) {
         try {

@@ -189,6 +189,27 @@ public final class ExposureCamera {
         return previous;
     }
 
+    /** The id of the roll in the camera ("exposure:color_film"), or "" with no film. */
+    public static String filmId(final ItemStack camera) {
+        return idOf(attachment(camera, Exposure.DataComponents.FILM));
+    }
+
+    /** The id of the filter over the lens, or "" with none. */
+    public static String filterId(final ItemStack camera) {
+        return idOf(attachment(camera, Exposure.DataComponents.FILTER));
+    }
+
+    /** Fit a filter (an empty stack takes it off); the one that was there comes back. */
+    public static ItemStack setFilter(final ItemStack camera, final ItemStack filter) {
+        final ItemStack previous = attachment(camera, Exposure.DataComponents.FILTER).copy();
+        if (filter.isEmpty()) {
+            camera.remove(Exposure.DataComponents.FILTER);
+        } else {
+            camera.set(Exposure.DataComponents.FILTER, new StoredItemStack(filter.copyWithCount(1)));
+        }
+        return previous;
+    }
+
     /** Take the roll out of the camera - a full one, ready for the darkroom. */
     public static ItemStack ejectFilm(final ItemStack camera) {
         final ItemStack film = attachment(camera, Exposure.DataComponents.FILM).copy();
@@ -616,7 +637,12 @@ public final class ExposureCamera {
                                     final Component title, final ItemStack camera) {
         byte[] picture = pixels;
         for (final String filter : shot.fittings.filters()) {
-            picture = Filters.apply(filter, picture);
+            // On black-and-white film a coloured filter does what glass does on a real camera: it
+            // passes its own colour and holds back the rest, so the greys shift - red darkens a
+            // blue sky and lightens red brick - instead of the whole frame going pink before it
+            // turns grey.
+            picture = shot.fittings.blackAndWhite() && Filters.isColour(filter)
+                    ? Filters.transmit(picture, filter) : Filters.apply(filter, picture);
         }
         final ExposureType type = shot.fittings.blackAndWhite() ? ExposureType.BLACK_AND_WHITE : ExposureType.COLOR;
         if (shot.fittings.blackAndWhite()) {
@@ -757,9 +783,7 @@ public final class ExposureCamera {
             if (filter.contains("pencil")) {
                 return edges(in, true);
             }
-            if (filter.contains("red") || filter.contains("green") || filter.contains("blue")
-                    || filter.contains("yellow") || filter.contains("cyan") || filter.contains("magenta")
-                    || filter.contains("orange") || filter.contains("purple") || filter.contains("pink")) {
+            if (isColour(filter)) {
                 return tint(in, filter);
             }
             if (filter.contains("color_convolve")) {
@@ -840,12 +864,92 @@ public final class ExposureCamera {
             return lum[yy * SIZE + xx];
         }
 
-        /** A coloured pane or filter over the lens: the whole frame leans its way. */
-        static byte[] tint(final byte[] in, final String filter) {
-            final int tintRgb = filter.contains("red") ? 0xFF4040 : filter.contains("green") ? 0x40FF40
+        /** Is this a coloured pane or colour filter (as opposed to an effect like pencil or blur)? */
+        static boolean isColour(final String filter) {
+            return filter.contains("red") || filter.contains("green") || filter.contains("blue")
+                    || filter.contains("yellow") || filter.contains("cyan") || filter.contains("magenta")
+                    || filter.contains("orange") || filter.contains("purple") || filter.contains("pink")
+                    || filter.contains("brown") || filter.contains("lime");
+        }
+
+        /** The colour a pane or filter lets through. Brown is a warm sepia. */
+        static int tintOf(final String filter) {
+            return filter.contains("red") ? 0xFF4040 : filter.contains("green") ? 0x40FF40
+                    : filter.contains("lime") ? 0x90FF40
                     : filter.contains("blue") ? 0x4060FF : filter.contains("yellow") ? 0xFFE040
                     : filter.contains("cyan") ? 0x40E0FF : filter.contains("magenta") ? 0xFF40E0
-                    : filter.contains("orange") ? 0xFF9020 : filter.contains("purple") ? 0xA040FF : 0xFF80C0;
+                    : filter.contains("orange") ? 0xFF9020 : filter.contains("purple") ? 0xA040FF
+                    : filter.contains("brown") ? 0xC08850 : 0xFF80C0;
+        }
+
+        /**
+         * How much of each channel (red, green, blue) a coloured filter lets through onto
+         * black-and-white film - roughly the classic photographic filters: red (#25) and orange
+         * (#21) hold back blue and most green, yellow (#8) only some of the blue, green (#58)
+         * red and blue alike.
+         */
+        static double[] passOf(final String filter) {
+            if (filter.contains("red")) {
+                return new double[] {1.00, 0.10, 0.03};
+            }
+            if (filter.contains("orange")) {
+                return new double[] {1.00, 0.45, 0.05};
+            }
+            if (filter.contains("yellow")) {
+                return new double[] {1.00, 0.92, 0.35};
+            }
+            if (filter.contains("lime")) {
+                return new double[] {0.60, 1.00, 0.30};
+            }
+            if (filter.contains("green")) {
+                return new double[] {0.25, 1.00, 0.25};
+            }
+            if (filter.contains("cyan")) {
+                return new double[] {0.10, 0.85, 1.00};
+            }
+            if (filter.contains("blue")) {
+                return new double[] {0.10, 0.25, 1.00};
+            }
+            if (filter.contains("magenta")) {
+                return new double[] {1.00, 0.15, 1.00};
+            }
+            if (filter.contains("purple")) {
+                return new double[] {0.55, 0.10, 1.00};
+            }
+            if (filter.contains("brown")) {
+                return new double[] {1.00, 0.70, 0.45};
+            }
+            final int t = tintOf(filter);
+            return new double[] {((t >> 16) & 0xFF) / 255.0, ((t >> 8) & 0xFF) / 255.0, (t & 0xFF) / 255.0};
+        }
+
+        /**
+         * A coloured filter in front of black-and-white film. The film sees each channel through
+         * the glass, and the exposure is opened up by the light the glass takes away - so the grey
+         * of every pixel is a weighted mix of its red, green and blue, weighted by what the glass
+         * passes. A neutral grey stays the grey it was; a colour the glass passes comes out lighter,
+         * one it holds back darker. Worked out straight to a grey, so no channel is clipped on the
+         * way and the only rounding is the grey's own, to the map palette.
+         */
+        static byte[] transmit(final byte[] in, final String filter) {
+            final double[] pass = passOf(filter);
+            final double wr = 0.299 * pass[0];
+            final double wg = 0.587 * pass[1];
+            final double wb = 0.114 * pass[2];
+            final double sum = wr + wg + wb;
+            final byte[] out = new byte[in.length];
+            for (int i = 0; i < in.length; i++) {
+                final int rgb = rgbOf(in[i]);
+                final int v = clamp((int) Math.round((((rgb >> 16) & 0xFF) * wr + ((rgb >> 8) & 0xFF) * wg
+                        + (rgb & 0xFF) * wb) / sum));
+                out[i] = nearest((v << 16) | (v << 8) | v);
+            }
+            return out;
+        }
+
+        /** A coloured pane or filter over the lens: the whole frame leans its way. */
+        static byte[] tint(final byte[] in, final String filter) {
+            final int tintRgb = tintOf(filter);
             final byte[] out = new byte[in.length];
             for (int i = 0; i < in.length; i++) {
                 final int rgb = rgbOf(in[i]);
