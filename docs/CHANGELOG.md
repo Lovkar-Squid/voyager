@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.3.8 - 2026-09-27 - sharper pictures on high-resolution film, and full rolls used up
+
+- **High-resolution film makes sharper photographs.** Exposure: Expanded's high-resolution rolls
+  have twice the frame of an ordinary roll, and the colonists' pictures now follow the roll: 192
+  pixels a side on a high-resolution roll instead of 96 - four times the detail. Until now every
+  picture was 96 pixels whatever was loaded. It goes for the astronomer's photograph from the
+  lookout too. A 192-pixel picture is exposed four times as long (about 24 seconds instead of 6),
+  so the server does no more work in any one moment than before: measured headless, an ordinary
+  picture costs the server about 0.1-0.2 s all told and a high-resolution one about 0.3-0.5 s.
+- **The Film setting picks a kind, not one item.** *Black and white* takes any black-and-white roll
+  that is not a fast one - Exposure's own, and Expanded's high-capacity and high-resolution rolls -
+  and the other choices the same way. In 0.3.7 it took only Exposure's plain roll: Expanded's rolls
+  on the shelf were ignored, and one in the camera was even taken out. When several rolls would do,
+  the photographer uses the plainest first, so a high-resolution or fast roll is only spent when
+  the setting asks for it or nothing else is left (on *whatever is on the shelf* too).
+- **New film choices: High-resolution B&W and High-resolution colour**, when Exposure: Expanded is
+  installed. Without such a roll he asks the colony for one.
+- **Full rolls are used up instead of piling up on the shelf.** Every picture on the roll was
+  developed the moment it was taken and is already in an album or a frame, so a full roll of the
+  colony's own pictures now simply goes when it comes out of the camera - at the Photo Booth and at
+  the Observatory - and the full rolls earlier versions left on the two shelves are cleared the
+  next time the camera is loaded. A roll with anybody else's pictures on it is never used up: a
+  player's pictures exist only as negatives until the roll is developed, so that one still goes on
+  the shelf for the darkroom.
+- Expanded's vanity films (Game Boy, NES, C64, CGA) are only used on *whatever is on the shelf*:
+  the colonists' pictures are drawn in the map's colours, not in their palettes.
+- The log line for every photograph gives its size and how long the server spent drawing it.
+- Tested headless: a high-resolution colour roll chosen over the black-and-white roll next to it
+  (192 pixels); *Black and white* with only a high-resolution black-and-white roll on the shelf
+  (used, 192 pixels) and with an ordinary one beside it (the ordinary one used, 96 pixels);
+  Expanded's pencil filter on a 192-pixel picture; a missing high-resolution roll asked for with no
+  outing; a full roll of the colony's own pictures used up and the spare loaded, a full roll with
+  somebody else's pictures put on the shelf, a full roll and no spare (a roll asked for, no
+  outing), and old full rolls cleared off the shelf while a player's stayed; and the astronomer's
+  lookout photograph on ordinary and on high-resolution film. The whole-pack gate ran with
+  Exposure: Space in it for the first time: 75 of 75 checks, and no warning from the mod at all.
+
 ## 0.3.7 - 2026-09-27 - pick the film and the filter
 
 - **New: the Photo Booth's settings tab has Film and Filter**, so you decide what the colony's

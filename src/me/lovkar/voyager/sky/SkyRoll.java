@@ -15,7 +15,7 @@ import java.util.Random;
  * odds by its own {@code luck} and opens its exclusive objects, which is the only way some of
  * them can ever be caught - so an event is worth staying up for.</p>
  *
- * <p>The six rarity bands Marko asked for are derived from the data rather than hand-sorted across
+ * <p>The six rarity bands Lovkar asked for are derived from the data rather than hand-sorted across
  * 256 objects: the tier you need to see it and how often it shows up. Event-exclusive is its own
  * top band, because "you had to be there" is the rarest thing a sky can offer.</p>
  */

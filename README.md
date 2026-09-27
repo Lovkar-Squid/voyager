@@ -109,10 +109,11 @@ two **guards** from the nearest towers out with them to stand watch until the pl
 frames, albums, flashes) and, when the bench is quiet, takes photographs of the colony: drawn ray
 by ray on the server out of the world's own map colours, with the colonists in front of the lens in
 the picture, shaded by the light, through whatever film, lens, filter and flash the colony fitted
-to its camera. The booth's settings pick the **film** (black and white, colour, high-sensitivity)
-and the **filter** (red, orange, yellow, green, blue, sepia - or, with Expanded, pencil sketch,
-outline, soft focus, mirror, faded and vivid) that the photographer loads and fits before every
-picture. Every building the builder finishes is photographed for the **colony chronicle**, an
+to its camera. The booth's settings pick the **film** (black and white, colour, high-sensitivity,
+and with Expanded high-resolution, which makes the pictures twice as sharp) and the **filter**
+(red, orange, yellow, green, blue, sepia - or, with Expanded, pencil sketch, outline, soft focus,
+mirror, faded and vivid) that the photographer loads and fits before every picture; a full roll
+of his own pictures is used up, since they are all printed already. Every building the builder finishes is photographed for the **colony chronicle**, an
 album on the shelf signed as a volume when it is full; from level 2 **visitors come in for a
 portrait** and, with Trade Post for MineColonies installed, pay for it in coins. Both huts have
 photograph frames on their walls and both workers hang their pictures in them - an empty frame

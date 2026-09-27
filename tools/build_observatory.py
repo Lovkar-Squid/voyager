@@ -22,7 +22,7 @@ BUILDING_TYPE = "voyager:observatory"
 BE_TYPE = "voyager:colonybuilding"
 # The shared footprint: every level of every look, aligned on its hut block, fits inside this.
 # The build tool outline never changes between upgrades, so an upgrade never appears to move the
-# building - the rule Marko set for the Departure Point.
+# building - the rule Lovkar set for the Departure Point.
 BOX = ((-11, 0, -12), (11, 25, 12))
 
 # Blocks from the mods this building depends on. Exposure and Exposure: Space because the

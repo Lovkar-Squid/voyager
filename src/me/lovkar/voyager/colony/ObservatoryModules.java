@@ -18,7 +18,7 @@ public final class ObservatoryModules {
      * Observatory. Knowledge decides what they can identify, Focus how long they hold a watch.
      *
      * <p>A <b>work-at-home</b> module, not a plain worker one: the astronomer lives at the
-     * Observatory. That was Marko's rule from the start and it is the only arrangement that makes
+     * Observatory. That was Lovkar's rule from the start and it is the only arrangement that makes
      * sense - somebody whose whole job is the dark should not be walking home across a sleeping
      * town at dawn and taking up a bed in a house they are never in at night. Assigning the job
      * assigns the home with it, and the bed in the study is theirs.</p>

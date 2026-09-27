@@ -332,14 +332,25 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
         }
     }
 
-    /** Film with room on it, from the shelf if the roll in the camera is full or missing. */
+    /**
+     * Film with room on it, from the shelf if the roll in the camera is full or missing. A full roll
+     * of nothing but the colony's own pictures is used up - they are printed already; one with
+     * anybody else's pictures on it goes on the shelf for the darkroom.
+     */
     private void loadFilmIfNeeded() {
+        final int cleared = ColonyCamera.clearUsedUpRolls(building);
+        if (cleared > 0) {
+            Voyager.LOGGER.info("[Observatory] {} used up {} full roll(s) left on the shelf",
+                    worker.getCitizenData().getName(), cleared);
+        }
         if (camera.isEmpty() || ColonyCamera.hasFreeFrame(camera)) {
             return;
         }
         if (ColonyCamera.hasFilm(camera)) {
             final ItemStack full = ColonyCamera.ejectFilm(camera);
-            if (!full.isEmpty() && !InventoryUtils.addItemStackToProvider(building, full)
+            if (ColonyCamera.isUsedUpColonyRoll(full)) {
+                Voyager.LOGGER.info("[Observatory] {} used up a full roll of film", worker.getCitizenData().getName());
+            } else if (!full.isEmpty() && !InventoryUtils.addItemStackToProvider(building, full)
                     && !InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), full)) {
                 ColonyCamera.loadFilm(camera, full);            // nowhere to put it; it stays in
                 return;
@@ -568,21 +579,22 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
             level.playSound(null, worker.blockPosition(), exposureSound("item.camera.shutter_open"),
                     SoundSource.NEUTRAL, 0.7f, 1.0f);
             shot = ColonyCamera.open(level, worker, camera);
-            film = ColonyCamera.blank();
+            film = ColonyCamera.blank(shot);
             rowsDone = 0;
             if (shot == null || film.length == 0) {
                 return leaveTheLookout();
             }
             return Watch.SHOOT_SKY;
         }
-        if (!ColonyCamera.renderBand(level, worker, shot, film, rowsDone, ROWS_PER_STEP)) {
+        final int rows = ColonyCamera.rowsPerStep(shot, ROWS_PER_STEP);
+        if (!ColonyCamera.renderBand(level, worker, shot, film, rowsDone, rows)) {
             shot = null;
             return leaveTheLookout();
         }
-        rowsDone += ROWS_PER_STEP;
+        rowsDone += rows;
         level.sendParticles(ParticleTypes.END_ROD, worker.getX(), worker.getEyeY(), worker.getZ(),
                 1, 0.12, 0.12, 0.12, 0.0);
-        if (rowsDone < ColonyCamera.size()) {
+        if (rowsDone < ColonyCamera.size(shot)) {
             return Watch.SHOOT_SKY;
         }
         level.playSound(null, worker.blockPosition(), exposureSound("item.camera.shutter_close"),
@@ -729,7 +741,7 @@ public class EntityAIWorkAstronomer extends AbstractEntityAIInteract<JobAstronom
      * <p>MineColonies drops a citizen's happiness for not sleeping - {@code EntityAISleep} clears
      * the "slepttonight" modifier and anybody who did not sleep keeps it. For a job whose whole
      * point is the dark that is simply wrong, so the astronomer clears it themselves at the end of
-     * a watch. Marko's rule, and it applies whether or not the colony has researched anything.</p>
+     * a watch. Lovkar's rule, and it applies whether or not the colony has researched anything.</p>
      *
      * <p>Star Party extends it to the whole colony on an event night: the town stays up to look,
      * and nobody is the worse for it in the morning.</p>

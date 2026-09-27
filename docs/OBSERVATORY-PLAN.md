@@ -622,7 +622,7 @@ researches — their progression items, through the item registry, with none of 
 In a pack without them those researches cannot be bought, and without their datapack the sky is
 empty anyway: `SkyData.summary()` says so in the log and every plate comes home blank.
 
-### Marko's three rules, in code
+### Lovkar's three rules, in code
 
 1. **Star parties must not penalise sleep.** `EntityAISleep` clears the `slepttonight` happiness
    modifier and anybody who did not sleep keeps it. The astronomer now clears it themselves at the
@@ -646,7 +646,7 @@ size, `star_party` and `darkroom_discipline` are read by the AI, `ephemeris` ann
 
 ## 11. Phase 2d — research *in* the Observatory, and research that reaches the Voyager: **DONE** (9 Sep 2026, `voyager-0.3.0-alpha.4.jar`)
 
-Two things Marko asked for: that the Observatory be a place you can *do* research, and that some of
+Two things Lovkar asked for: that the Observatory be a place you can *do* research, and that some of
 those researches change how the Voyager works.
 
 ### 11.1 A second research building
@@ -690,7 +690,7 @@ colony that would rather train astronomers than researchers can.
 
 ### 11.2 Three researches that cross to the Voyager
 
-Bought at the Observatory, spent at the Departure Point. This is the join Marko wanted between the
+Bought at the Observatory, spent at the Departure Point. This is the join Lovkar wanted between the
 two professions: the colony that watches the sky crosses it better.
 
 | Research | Level | Needs | Parent | What it does |
@@ -799,7 +799,7 @@ rack and count" is not a way to test this.
 
 ---
 
-## 14. Phase 3 — five things Marko caught in game, and the Observatory's own research (9 Sep 2026, `alpha.7` and `alpha.8`)
+## 14. Phase 3 — five things Lovkar caught in game, and the Observatory's own research (9 Sep 2026, `alpha.7` and `alpha.8`)
 
 First play-test of the Observatory. Five findings, all real.
 
@@ -820,7 +820,7 @@ folders → blueprints (labelled by the hut's `INamedBlueprintAnchorBlock.getBlu
 → **alternatives** (the `name=` tag) → levels (`ILeveledBlueprintAnchorBlock.getLevel`, which for a
 MineColonies hut is the digits in `blueprintDataProvider.schematicName`).
 
-Marko also asked for the mod to sit higher in the Switch Pack window. It cannot: Structurize keys
+Lovkar also asked for the mod to sit higher in the Switch Pack window. It cannot: Structurize keys
 that window's categories on a `TreeMap` of the pack's **owner**, and for a pack inside a mod jar
 the owner comes from `modFile.findResource("blueprints", modId)` — the mod id, alphabetical, always
 after `minecolonies`. With the looks inside one pack he does not need that window at all.
@@ -848,8 +848,8 @@ Colonists cannot open them. Skyward Station → `warped_door`, Aperture Array �
 
 ### 14.5 The Observatory's own research (`alpha.8`)
 
-Marko: *"za research sem mislil bolj da ima observatori svoj research sistem in ne istega kot
-university"*. Fair, and it turned out to be the better design.
+Lovkar: *"by research I meant more that the Observatory has a research system of its own, not the
+same one as the University"*. Fair, and it turned out to be the better design.
 
 **The idea that makes it its own system: a study is paid for in nights, not hours.** The University
 buys research with a timer and a researcher standing in a room. An Observatory buys it with nights
@@ -891,8 +891,8 @@ Consequences, all good:
 
 ## 15. Phase 3b — the night shift, and the astronomer's own roof (9 Sep 2026, `alpha.9`)
 
-Marko, watching the first astronomer: *"zdaj gre delavec ki tam dela spat ponoči (ravno takrat ko
-bi naj delal)"*. The whole building did nothing, because dusk fell and the one colonist whose job
+Lovkar, watching the first astronomer: *"now the worker there goes to bed at night (just when he
+is supposed to be working)"*. The whole building did nothing, because dusk fell and the one colonist whose job
 is the dark walked off to a bed.
 
 ### 15.1 Why this needed a mixin — the only one in the mod
@@ -929,7 +929,7 @@ Asked directly, the answer was no, so now it is: `ObservatoryModules.WORK` is a
 **`WorkAtHomeBuildingModule`** instead of a plain worker module (assigning the job assigns the
 home), the building carries `BuildingModules.BED`, and the study has a bed from level 1.
 
-That was Marko's rule from the very first plan and it is the arrangement that makes sense:
+That was Lovkar's rule from the very first plan and it is the arrangement that makes sense:
 somebody who works nights should not be walking home across a sleeping town at dawn, nor holding a
 bed in a house they are never in at night. It also gives the colony a bed back.
 
@@ -951,9 +951,9 @@ levels caught it before it shipped, and now guards it.
 
 ## 16. Phase 4 — automation, real photographs, and the Photo Booth (9 Sep 2026, `alpha.10` – `alpha.12`)
 
-Marko: *"probajva naredit čim več stvari da bo automatable da lahko oni delajo sami in craftajo
-stvari ki jih rabijo sami"*, and then the one that changed the whole design: *"kaj pa če probava
-nekak po svoje naredit da lahko kolonisti slikajo?"*
+Lovkar: *"let's make as much as we can automatable, so they can work on their own and craft the
+things they need themselves"*, and then the one that changed the whole design: *"what if we found
+some way of our own to let colonists take photographs?"*
 
 ### 16.1 The sky pays for being looked at (`alpha.10`)
 
@@ -1040,7 +1040,7 @@ has a camera — which the photographer can, of course, make.
 
 ## 17. Phase 4b — people in the picture, the camera's fittings, and a photographer you can recognise (10 Sep 2026, `alpha.13`)
 
-Marko has not tested any of the `0.3.0` alphas yet, so this morning's pass was about making the
+Lovkar has not tested any of the `0.3.0` alphas yet, so this morning's pass was about making the
 first test land well: what would look wrong in the first five minutes, and what would make a
 photograph worth keeping.
 
@@ -1121,7 +1121,7 @@ colony's film actually fills up and the darkroom recipes have something to devel
 
 ## 18. Phase 5 — the Photo Booth earns its keep: sitters who pay, and the colony chronicle (10 Sep 2026, `alpha.14`)
 
-Marko, this morning: *the photographer works by day and can photograph other colonists and, say,
+Lovkar, this morning: *the photographer works by day and can photograph other colonists and, say,
 document the colony's development; and visitors could come in to be photographed, and you get
 revenue for the Trade Post.* The design doc had both under "Visitor Vanity" and "Portraiture"
 (`docs/OBSERVATORY.md` §4); this is them built, with one change of mind about coupling.
@@ -1203,7 +1203,7 @@ every five minutes).
 
 ## 19. Phase 5b — the lookout and the night escort (10 Sep 2026, `alpha.15`)
 
-Marko: *maybe the one who works in the Observatory could go up a hill, or somewhere the sky is very
+Lovkar: *maybe the one who works in the Observatory could go up a hill, or somewhere the sky is very
 clear at night, to photograph better, and take the camera along - and you could assign a guard to
 protect them at night.*
 
@@ -1257,7 +1257,7 @@ plain `BoolSetting`/`StringSetting`, so nothing new had to be taught to MineColo
 
 ### 18.6 Progress pictures (`alpha.16`)
 
-Marko: *and maybe document during construction too - photograph the progress halfway?* The
+Lovkar: *and maybe document during construction too - photograph the progress halfway?* The
 builder's hut keeps its place in the blueprint - a blueprint-local position and a stage (clear,
 solid blocks, non-solids, decoration, spawn). Every colony tick the Photo Booth looks at every
 claimed build or upgrade in the colony's work manager: once the solid stage has climbed past half
@@ -1270,7 +1270,7 @@ the builder is done. A finished building supersedes its own halfway picture if t
 ### 19.5 The review before the first test (`alpha.17`)
 
 An independent read of every class written today against the decompiled MineColonies sources,
-before Marko runs any of it. What it caught, all fixed in `alpha.17`:
+before Lovkar runs any of it. What it caught, all fixed in `alpha.17`:
 
 - **The photographer would never have taken a picture.** `AbstractEntityAICrafting` leaves IDLE
   only when `hasWorkToDo()` - a crafting request - so the `decide()` override that starts a shoot
@@ -1295,7 +1295,7 @@ before Marko runs any of it. What it caught, all fixed in `alpha.17`:
 
 ## 20. Phase 5c — every room reachable, and the photographer moves in (10 Sep 2026, `alpha.18` – `alpha.19`)
 
-Marko's first walk through the buildings found the photographer with "a wall in front of his
+Lovkar's first walk through the buildings found the photographer with "a wall in front of his
 door", rooms with no way into them, and a lightroom that could not print. All fifty blueprints were
 redrawn from one plan and every one of them is now checked by a machine before it is written.
 

@@ -14,7 +14,7 @@ profession, pick the one that suits your town in the build tool.
   array        Aperture Array    - a great open ring on two pylons, on a dark seamed block
 
 Each look keeps its own five levels inside the same box, aligned on its own hut block, so an
-upgrade never appears to move the building - the requirement Marko set for the Departure Point.
+upgrade never appears to move the building - the requirement Lovkar set for the Departure Point.
 
 THE PLAN EVERY LOOK SHARES (tools/access.py is the judge, and every design passes it):
 

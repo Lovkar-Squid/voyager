@@ -52,7 +52,96 @@ public final class ColonyCamera {
         }
     }
 
+    /** Pixels on a side of the picture this shot is taking - 96, or more on a high-resolution roll. 0 without one. */
+    public static int size(final Object shot) {
+        try {
+            return shot == null || !available() ? 0
+                    : ((me.lovkar.voyager.compat.ExposureCamera.Shot) shot).size();
+        } catch (final Throwable exposureChanged) {
+            return 0;
+        }
+    }
+
+    /** A blank picture the size this shot's roll takes; empty without one. */
+    public static byte[] blank(final Object shot) {
+        try {
+            return shot == null || !available() ? new byte[0]
+                    : me.lovkar.voyager.compat.ExposureCamera.blank((me.lovkar.voyager.compat.ExposureCamera.Shot) shot);
+        } catch (final Throwable exposureChanged) {
+            return new byte[0];
+        }
+    }
+
+    /**
+     * Rows to draw in one step of an exposure so a step costs what it always has: all of
+     * {@code rowsOfOrdinary} on an ordinary picture, and on a larger one as many rows as make the
+     * same number of rays. A high-resolution picture (192 pixels, four times the rays) is exposed
+     * four times as long instead of in heavier ticks - measured headless, an ordinary picture is
+     * about 0.2 s of the server's time and a high-resolution one about 0.5 s, all told.
+     */
+    public static int rowsPerStep(final Object shot, final int rowsOfOrdinary) {
+        final int size = size(shot);
+        final int ordinary = me.lovkar.voyager.compat.ExposureCamera.SIZE;
+        return size <= ordinary ? rowsOfOrdinary : Math.max(1, rowsOfOrdinary * ordinary / size);
+    }
+
     // ------------------------------------------------------------------ film
+
+    /**
+     * What kind of roll this is, as the bits of {@link FilmTraits}; 0 for anything that is not a
+     * roll, and without Exposure.
+     */
+    public static int filmTraits(final ItemStack stack) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureCamera.filmTraits(stack) : 0;
+        } catch (final Throwable exposureChanged) {
+            return 0;
+        }
+    }
+
+    /** A full roll only the colony's workers exposed - nothing on it that is not already printed. */
+    public static boolean isUsedUpColonyRoll(final ItemStack stack) {
+        try {
+            return available() && me.lovkar.voyager.compat.ExposureCamera.isUsedUpColonyRoll(stack);
+        } catch (final Throwable exposureChanged) {
+            return false;
+        }
+    }
+
+    /**
+     * Use up the full rolls the colony's workers left on a building's shelf (0.3.7 and earlier put
+     * every full roll there): only rolls {@link #isUsedUpColonyRoll} says hold nothing but pictures
+     * already printed. Returns how many went.
+     */
+    public static int clearUsedUpRolls(final IBuilding building) {
+        if (building == null || !available()) {
+            return 0;
+        }
+        int cleared = 0;
+        try {
+            for (final net.neoforged.neoforge.items.IItemHandler handler
+                    : com.minecolonies.api.util.InventoryUtils.getItemHandlersFromProvider(building)) {
+                for (int slot = 0; slot < handler.getSlots(); slot++) {
+                    final ItemStack stack = handler.getStackInSlot(slot);
+                    if (!stack.isEmpty() && isUsedUpColonyRoll(stack)) {
+                        cleared += handler.extractItem(slot, stack.getCount(), false).getCount();
+                    }
+                }
+            }
+        } catch (final Throwable exposureChanged) {
+            complain(exposureChanged);
+        }
+        return cleared;
+    }
+
+    /** {@link #filmTraits} of the roll loaded in a camera, 0 with none. */
+    public static int loadedFilmTraits(final ItemStack camera) {
+        try {
+            return available() ? me.lovkar.voyager.compat.ExposureCamera.loadedFilmTraits(camera) : 0;
+        } catch (final Throwable exposureChanged) {
+            return 0;
+        }
+    }
 
     public static boolean isFilm(final ItemStack stack) {
         try {

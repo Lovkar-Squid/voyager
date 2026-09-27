@@ -25,7 +25,7 @@ import net.minecraft.world.item.ItemStack;
  *
  * <p>The first prints pointed the photograph straight at Exposure: Space's catalogue picture of
  * the object - correct, and dull: the picture has a transparent ground, so it hung on the wall as
- * a coloured icon on white paper. Marko's words: "a bit boring because you can't see the night
+ * a coloured icon on white paper. Lovkar's words: "a bit boring because you can't see the night
  * sky". This draws the sky the way the lookout photograph draws it - in Minecraft's own map
  * colours, the palette Exposure stores its pictures in - and presses the catalogue picture into
  * it as big as a telescope would make it: a deep blue that goes black at the zenith, a scatter

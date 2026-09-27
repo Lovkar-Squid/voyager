@@ -21,12 +21,14 @@ import io.github.mortuusars.exposure.world.camera.ExposureType;
 import io.github.mortuusars.exposure.world.camera.component.FlashMode;
 import io.github.mortuusars.exposure.world.camera.component.ShutterSpeed;
 import io.github.mortuusars.exposure.world.camera.frame.EntityInFrame;
+import io.github.mortuusars.exposure.world.item.FilmItem;
 import io.github.mortuusars.exposure.world.item.FilmRollItem;
 import io.github.mortuusars.exposure.world.item.component.StoredItemStack;
 import io.github.mortuusars.exposure.world.camera.frame.Frame;
 import io.github.mortuusars.exposure.world.camera.frame.Photographer;
 import io.github.mortuusars.exposure.world.level.storage.ExposureData;
 import io.github.mortuusars.exposure.world.level.storage.ExposureIdentifier;
+import me.lovkar.voyager.photo.FilmTraits;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -78,8 +80,10 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class ExposureCamera {
 
-    /** Pixels on a side. Exposure's own frames are square and small; this matches their look. */
+    /** Pixels on a side on ordinary film. Exposure's own frames are square and small; this matches their look. */
     public static final int SIZE = 96;
+    /** The most pixels on a side any roll gets - a high-resolution roll gets 192. */
+    public static final int MAX_SIZE = 256;
     /** How far the camera can see. Beyond this is sky. */
     private static final double RANGE = 80.0;
     /** A 70 degree field of view, the same as the game's default. */
@@ -106,15 +110,17 @@ public final class ExposureCamera {
      *   <li><b>flash</b> - lets a night shot come out lit, and goes off visibly;</li>
      *   <li><b>shutter speed</b> - a slow shutter brightens the exposure, a fast one darkens it.</li>
      * </ul>
+     * <p>And the roll sets the size of the picture: {@link #pictureSize} - 96 pixels on a side on
+     * ordinary film, 192 on Exposure: Expanded's high-resolution rolls.</p>
      */
     public record Fittings(boolean blackAndWhite, boolean sensitive, double fovScale,
-                           Set<String> filters, boolean flash, int stops) {
+                           Set<String> filters, boolean flash, int stops, int size) {
 
-        public static final Fittings PLAIN = new Fittings(false, false, 1.0, Set.of(), false, 0);
+        public static final Fittings PLAIN = new Fittings(false, false, 1.0, Set.of(), false, 0, SIZE);
 
         /** The same camera pointed through a different field of view - the lens is overruled. */
         public Fittings withFov(final double scale) {
-            return new Fittings(blackAndWhite, sensitive, scale, filters, flash, stops);
+            return new Fittings(blackAndWhite, sensitive, scale, filters, flash, stops, size);
         }
     }
 
@@ -156,7 +162,63 @@ public final class ExposureCamera {
         if (speed != null) {
             stops = Math.round(speed.getStopsDifference(ShutterSpeed.DEFAULT));
         }
-        return new Fittings(bw, sensitive, fov, filters, flashOn, stops);
+        return new Fittings(bw, sensitive, fov, filters, flashOn, stops, pictureSize(film));
+    }
+
+    /**
+     * Pixels on a side for a picture on this roll. Exposure gives every roll a frame size - 320 by
+     * default, 640 on Expanded's high-resolution rolls - and a player's camera takes its picture at
+     * that size. The colonist's picture is drawn ray by ray on the server, so it is kept to the same
+     * proportion of it: 96 on an ordinary roll, 192 on a high-resolution one, never more than
+     * {@link #MAX_SIZE}.
+     */
+    static int pictureSize(final ItemStack film) {
+        try {
+            if (film.getItem() instanceof FilmItem roll) {
+                return Math.max(SIZE, Math.min(MAX_SIZE, roll.getFrameSize(film) * 3 / 10));
+            }
+        } catch (final RuntimeException configNotReady) {
+            // Exposure reads its default frame size from the server config
+        }
+        return SIZE;
+    }
+
+    /**
+     * What kind of roll this is, as the bits of {@link FilmTraits}: whether it is black and white (Exposure's own film type),
+     * high-sensitivity ({@code high_sensitivity} or Expanded's {@code hisen} in its id), high-resolution
+     * (a frame larger than the default) or one of Expanded's vanity films with a palette of its own
+     * (Game Boy, NES, C64, CGA). 0 for anything that is not a roll of film.
+     */
+    public static int filmTraits(final ItemStack roll) {
+        if (roll.isEmpty() || !(roll.getItem() instanceof FilmRollItem film)) {
+            return 0;
+        }
+        int traits = FilmTraits.FILM;
+        final String id = idOf(roll);
+        if (film.getType() == ExposureType.BLACK_AND_WHITE || id.contains("black_and_white") || id.contains("gameboy")) {
+            traits |= FilmTraits.BLACK_AND_WHITE;
+        }
+        if (id.contains("high_sensitivity") || id.contains("hisen")) {
+            traits |= FilmTraits.SENSITIVE;
+        }
+        try {
+            if (film.getFrameSize(roll) > film.getDefaultFrameSize(roll)) {
+                traits |= FilmTraits.HIGH_RESOLUTION;
+            }
+        } catch (final RuntimeException configNotReady) {
+            if (id.contains("hires")) {
+                traits |= FilmTraits.HIGH_RESOLUTION;
+            }
+        }
+        if (roll.has(Exposure.DataComponents.FILM_COLOR_PALETTE)) {
+            traits |= FilmTraits.VANITY;
+        }
+        return traits;
+    }
+
+    /** {@link #filmTraits} of the roll loaded in a camera, 0 with none. */
+    public static int loadedFilmTraits(final ItemStack camera) {
+        return filmTraits(attachment(camera, Exposure.DataComponents.FILM));
     }
 
     private static ItemStack attachment(final ItemStack camera,
@@ -208,6 +270,29 @@ public final class ExposureCamera {
             camera.set(Exposure.DataComponents.FILTER, new StoredItemStack(filter.copyWithCount(1)));
         }
         return previous;
+    }
+
+    /**
+     * Is this a full roll that only the colony's own workers exposed - every frame on it one of
+     * Voyager's pictures ({@code voyager_...})? Those pictures were developed the moment they were
+     * taken and are already in an album or a frame, so the roll holds nothing anybody needs and can
+     * be used up. A roll with anyone else's frame on it is not: a player's pictures exist only as
+     * negatives until the roll is developed.
+     */
+    public static boolean isUsedUpColonyRoll(final ItemStack roll) {
+        if (!(roll.getItem() instanceof FilmRollItem film) || film.canAddFrame(roll)) {
+            return false;
+        }
+        final List<Frame> frames = film.getStoredFrames(roll);
+        if (frames.isEmpty()) {
+            return false;
+        }
+        for (final Frame frame : frames) {
+            if (!frame.identifier().getId().orElse("").startsWith("voyager_")) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Take the roll out of the camera - a full one, ready for the darkroom. */
@@ -294,6 +379,11 @@ public final class ExposureCamera {
         public List<Entity> inFrame() {
             return new ArrayList<>(seen);
         }
+
+        /** Pixels on a side of this picture - set by the roll in the camera when the shutter opened. */
+        public int size() {
+            return fittings.size();
+        }
     }
 
     /** Exposure's camera stand - the studio's own tripod, which stands between sitter and lens. */
@@ -320,15 +410,19 @@ public final class ExposureCamera {
      */
     public static void renderBand(final ServerLevel level, final Entity eye, final Shot shot,
                                   final byte[] pixels, final int from, final int rows) {
-        for (int py = from; py < Math.min(SIZE, from + rows); py++) {
-            final double ndcY = 1.0 - ((py + 0.5) / SIZE) * 2.0;
-            for (int px = 0; px < SIZE; px++) {
-                final double ndcX = ((px + 0.5) / SIZE) * 2.0 - 1.0;
+        final int n = shot.size();
+        if (pixels.length != n * n) {
+            throw new IllegalArgumentException("a " + n + "-pixel picture needs " + (n * n) + " bytes, not " + pixels.length);
+        }
+        for (int py = from; py < Math.min(n, from + rows); py++) {
+            final double ndcY = 1.0 - ((py + 0.5) / n) * 2.0;
+            for (int px = 0; px < n; px++) {
+                final double ndcX = ((px + 0.5) / n) * 2.0 - 1.0;
                 final Vec3 dir = shot.forward
                         .add(shot.right.scale(ndcX * shot.tanHalfFov))
                         .add(shot.up.scale(ndcY * shot.tanHalfFov))
                         .normalize();
-                pixels[py * SIZE + px] = sample(level, eye, shot, dir, px, py);
+                pixels[py * n + px] = sample(level, eye, shot, dir, px, py);
             }
         }
     }
@@ -496,15 +590,17 @@ public final class ExposureCamera {
      * lens the object fills much of the frame; through a plain one it is a smudge of the right
      * colours a few pixels wide - which is what a plain camera pointed at a nebula would get.</p>
      *
-     * @param sizePx the width the object should be painted at, in pixels of the frame
+     * @param sizePx the width the object should be painted at, in pixels of an ordinary
+     *               ({@link #SIZE}-pixel) frame - a larger frame gets it scaled up to match
      * @return true if something was painted
      */
     public static boolean paintObject(final byte[] pixels, final ResourceLocation texture, final int sizePx) {
-        if (pixels.length != SIZE * SIZE || texture == null || sizePx <= 0) {
+        final int n = Filters.side(pixels);
+        if (n == 0 || texture == null || sizePx <= 0) {
             return false;
         }
         final BufferedImage image = catalogue(texture);
-        return image != null && paste(pixels, image, sizePx, SIZE / 2, SIZE / 2, SIZE);
+        return image != null && paste(pixels, image, Math.max(1, sizePx * n / SIZE), n / 2, n / 2, n);
     }
 
     /** A catalogue picture out of its mod's jar, cached; null if nobody ships it. */
@@ -519,18 +615,19 @@ public final class ExposureCamera {
      */
     static boolean paste(final byte[] pixels, final BufferedImage image, final int sizePx,
                          final int cx, final int cy, final int yMax) {
-        final int size = Math.max(1, Math.min(SIZE, sizePx));
+        final int n = Filters.side(pixels);
+        final int size = Math.max(1, Math.min(n, sizePx));
         final int x0 = cx - size / 2;
         final int y0 = cy - size / 2;
         boolean painted = false;
         for (int y = 0; y < size; y++) {
             final int py = y0 + y;
-            if (py < 0 || py >= Math.min(SIZE, yMax)) {
+            if (py < 0 || py >= Math.min(n, yMax)) {
                 continue;
             }
             for (int x = 0; x < size; x++) {
                 final int pxx = x0 + x;
-                if (pxx < 0 || pxx >= SIZE) {
+                if (pxx < 0 || pxx >= n) {
                     continue;
                 }
                 final int sx = Math.min(image.getWidth() - 1, x * image.getWidth() / size);
@@ -546,7 +643,7 @@ public final class ExposureCamera {
                 if (r + g + b < 60) {
                     continue;                           // the picture's own black background is sky
                 }
-                pixels[py * SIZE + pxx] = Filters.nearest((r << 16) | (g << 8) | b);
+                pixels[py * n + pxx] = Filters.nearest((r << 16) | (g << 8) | b);
                 painted = true;
             }
         }
@@ -648,7 +745,8 @@ public final class ExposureCamera {
         if (shot.fittings.blackAndWhite()) {
             picture = Filters.greys(picture);
         }
-        final ExposureData data = new ExposureData(SIZE, SIZE, picture,
+        final int n = Filters.side(picture);
+        final ExposureData data = new ExposureData(n, n, picture,
                 ColorPalettes.MAP_COLORS.location(),
                 new ExposureData.Tag(type, photographer, System.currentTimeMillis() / 1000L, false, false));
         ExposureServer.exposureRepository().save(id, data);
@@ -701,6 +799,12 @@ public final class ExposureCamera {
         private static int[] palette;
 
         private Filters() {
+        }
+
+        /** Pixels on a side of a square picture, 0 if the bytes are not one. */
+        static int side(final byte[] in) {
+            final int n = (int) Math.round(Math.sqrt(in.length));
+            return n * n == in.length ? n : 0;
         }
 
         private static int[] palette() {
@@ -793,9 +897,10 @@ public final class ExposureCamera {
         }
 
         static byte[] flip(final byte[] in) {
+            final int n = side(in);
             final byte[] out = new byte[in.length];
-            for (int y = 0; y < SIZE; y++) {
-                System.arraycopy(in, y * SIZE, out, (SIZE - 1 - y) * SIZE, SIZE);
+            for (int y = 0; y < n; y++) {
+                System.arraycopy(in, y * n, out, (n - 1 - y) * n, n);
             }
             return out;
         }
@@ -814,24 +919,25 @@ public final class ExposureCamera {
         }
 
         static byte[] blur(final byte[] in) {
+            final int n = side(in);
             final byte[] out = new byte[in.length];
-            for (int y = 0; y < SIZE; y++) {
-                for (int x = 0; x < SIZE; x++) {
-                    int r = 0, g = 0, b = 0, n = 0;
+            for (int y = 0; y < n; y++) {
+                for (int x = 0; x < n; x++) {
+                    int r = 0, g = 0, b = 0, count = 0;
                     for (int dy = -1; dy <= 1; dy++) {
                         for (int dx = -1; dx <= 1; dx++) {
                             final int xx = x + dx, yy = y + dy;
-                            if (xx < 0 || yy < 0 || xx >= SIZE || yy >= SIZE) {
+                            if (xx < 0 || yy < 0 || xx >= n || yy >= n) {
                                 continue;
                             }
-                            final int rgb = rgbOf(in[yy * SIZE + xx]);
+                            final int rgb = rgbOf(in[yy * n + xx]);
                             r += (rgb >> 16) & 0xFF;
                             g += (rgb >> 8) & 0xFF;
                             b += rgb & 0xFF;
-                            n++;
+                            count++;
                         }
                     }
-                    out[y * SIZE + x] = nearest(((r / n) << 16) | ((g / n) << 8) | (b / n));
+                    out[y * n + x] = nearest(((r / count) << 16) | ((g / count) << 8) | (b / count));
                 }
             }
             return out;
@@ -843,25 +949,26 @@ public final class ExposureCamera {
             for (int i = 0; i < in.length; i++) {
                 lum[i] = luminance(rgbOf(in[i]));
             }
+            final int n = side(in);
             final byte[] out = new byte[in.length];
-            for (int y = 0; y < SIZE; y++) {
-                for (int x = 0; x < SIZE; x++) {
-                    final int gx = at(lum, x + 1, y - 1) + 2 * at(lum, x + 1, y) + at(lum, x + 1, y + 1)
-                            - at(lum, x - 1, y - 1) - 2 * at(lum, x - 1, y) - at(lum, x - 1, y + 1);
-                    final int gy = at(lum, x - 1, y + 1) + 2 * at(lum, x, y + 1) + at(lum, x + 1, y + 1)
-                            - at(lum, x - 1, y - 1) - 2 * at(lum, x, y - 1) - at(lum, x + 1, y - 1);
+            for (int y = 0; y < n; y++) {
+                for (int x = 0; x < n; x++) {
+                    final int gx = at(lum, n, x + 1, y - 1) + 2 * at(lum, n, x + 1, y) + at(lum, n, x + 1, y + 1)
+                            - at(lum, n, x - 1, y - 1) - 2 * at(lum, n, x - 1, y) - at(lum, n, x - 1, y + 1);
+                    final int gy = at(lum, n, x - 1, y + 1) + 2 * at(lum, n, x, y + 1) + at(lum, n, x + 1, y + 1)
+                            - at(lum, n, x - 1, y - 1) - 2 * at(lum, n, x, y - 1) - at(lum, n, x + 1, y - 1);
                     final int edge = clamp((int) Math.sqrt((double) gx * gx + (double) gy * gy) / 2);
                     final int v = pencil ? 255 - edge : edge;
-                    out[y * SIZE + x] = nearest((v << 16) | (v << 8) | v);
+                    out[y * n + x] = nearest((v << 16) | (v << 8) | v);
                 }
             }
             return out;
         }
 
-        private static int at(final int[] lum, final int x, final int y) {
-            final int xx = Math.max(0, Math.min(SIZE - 1, x));
-            final int yy = Math.max(0, Math.min(SIZE - 1, y));
-            return lum[yy * SIZE + xx];
+        private static int at(final int[] lum, final int n, final int x, final int y) {
+            final int xx = Math.max(0, Math.min(n - 1, x));
+            final int yy = Math.max(0, Math.min(n - 1, y));
+            return lum[yy * n + xx];
         }
 
         /** Is this a coloured pane or colour filter (as opposed to an effect like pencil or blur)? */
@@ -966,8 +1073,13 @@ public final class ExposureCamera {
         }
     }
 
-    /** A blank picture to draw into. */
+    /** A blank picture to draw into, ordinary size. */
     public static byte[] blank() {
         return new byte[SIZE * SIZE];
+    }
+
+    /** A blank picture the size this shot's roll takes. */
+    public static byte[] blank(final Shot shot) {
+        return new byte[shot.size() * shot.size()];
     }
 }

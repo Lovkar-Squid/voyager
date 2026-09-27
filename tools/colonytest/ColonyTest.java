@@ -201,8 +201,29 @@ public class ColonyTest {
                 LOGGER.info("[colonytest] pre-fitted {} to the camera: {}", itemFor(prefit),
                         me.lovkar.voyager.photo.ColonyCamera.setFilter(cam, pane) != null);
             }
+            // loaded=<film>/<frames used>[v]: a roll already in the camera, that many frames taken -
+            // by the colony's workers with a trailing v (voyager_ ids), else by "somebody" (no id)
+            final String loaded = word("loaded=");
+            if (!loaded.isEmpty()) {
+                final String[] parts = loaded.split("/");
+                final boolean ours = parts.length > 1 && parts[1].endsWith("v");
+                final int used = parts.length > 1 ? Integer.parseInt(parts[1].replace("v", "")) : 16;
+                final ItemStack roll = exposedRoll(itemFor(parts[0]), used, ours);
+                cam.set(io.github.mortuusars.exposure.Exposure.DataComponents.FILM,
+                        new io.github.mortuusars.exposure.world.item.component.StoredItemStack(roll));
+                LOGGER.info("[colonytest] loaded {} into the camera, {} frames used ({}), used-up colony roll: {}",
+                        itemFor(parts[0]), used, ours ? "the colony's" : "somebody else's",
+                        me.lovkar.voyager.photo.ColonyCamera.isUsedUpColonyRoll(roll));
+            }
             InventoryUtils.addItemStackToProvider(booth, cam);
             for (final String w : word("shelf=").split("\\+")) {
+                if (w.equals("usedroll") || w.equals("playerroll")) {
+                    // a full black-and-white roll on the shelf: the colony's own, or somebody else's
+                    final ItemStack roll = exposedRoll(itemFor("bw"), 16, w.equals("usedroll"));
+                    LOGGER.info("[colonytest] on the booth's shelf: a full roll, {} ({})", w,
+                            InventoryUtils.addItemStackToProvider(booth, roll));
+                    continue;
+                }
                 if (!w.isEmpty()) {
                     LOGGER.info("[colonytest] on the booth's shelf: {} ({})", itemFor(w),
                             InventoryUtils.addItemStackToProvider(booth, new ItemStack(BuiltInRegistries.ITEM.get(itemFor(w)))));
@@ -328,13 +349,34 @@ public class ColonyTest {
         return building;
     }
 
+    /** A roll with frames on it: ids like the colony's workers give them, or none (a player's roll, as far as we care). */
+    private static ItemStack exposedRoll(final ResourceLocation filmId, final int frames, final boolean ours) {
+        final ItemStack roll = new ItemStack(BuiltInRegistries.ITEM.get(filmId));
+        if (roll.getItem() instanceof io.github.mortuusars.exposure.world.item.FilmRollItem film) {
+            for (int i = 0; i < frames && film.canAddFrame(roll); i++) {
+                film.addFrame(roll, ours
+                        ? new io.github.mortuusars.exposure.world.camera.frame.Frame(
+                                io.github.mortuusars.exposure.world.level.storage.ExposureIdentifier.id("voyager_test_" + i),
+                                io.github.mortuusars.exposure.world.camera.ExposureType.BLACK_AND_WHITE,
+                                io.github.mortuusars.exposure.world.camera.frame.Photographer.EMPTY,
+                                java.util.List.of(), new io.github.mortuusars.exposure.util.ExtraData())
+                        : io.github.mortuusars.exposure.world.camera.frame.Frame.EMPTY);
+            }
+        }
+        return roll;
+    }
+
     private void stock(final IBuilding building) {
         final Item camera = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("exposure", "camera"));
-        final Item film = BuiltInRegistries.ITEM.get(ResourceLocation.fromNamespaceAndPath("exposure", "black_and_white_film"));
+        // obsfilm=<item>: the rolls stocked with the camera (the lookout camera's film), black and white by default
+        final String obsFilm = word("obsfilm=");
+        final Item film = BuiltInRegistries.ITEM.get(obsFilm.isEmpty()
+                ? ResourceLocation.fromNamespaceAndPath("exposure", "black_and_white_film") : itemFor(obsFilm));
         final boolean a = InventoryUtils.addItemStackToProvider(building, new ItemStack(camera));
         final boolean b = InventoryUtils.addItemStackToProvider(building, new ItemStack(film));
         final boolean c = InventoryUtils.addItemStackToProvider(building, new ItemStack(film));
-        LOGGER.info("[colonytest] stocked {}: camera {} film {} {}", building.getSchematicName(), a, b, c);
+        LOGGER.info("[colonytest] stocked {}: camera {} film {} {} ({})", building.getSchematicName(), a, b, c,
+                BuiltInRegistries.ITEM.getKey(film));
     }
 
     private ICitizenData spawn(final ServerLevel level, final BlockPos at) {

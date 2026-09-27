@@ -22,7 +22,7 @@ import java.util.function.Function;
  * the building makes them homeless again so a house takes them back. The bed in the studio is
  * theirs through {@code BuildingModules.BED}, the way the astronomer's is.</p>
  *
- * <p>Marko's rule, the same as the Observatory's: the photographer lives at the Photo Booth.
+ * <p>Lovkar's rule, the same as the Observatory's: the photographer lives at the Photo Booth.
  * The first alpha hired them as an ordinary crafter and they walked home to a house at night.</p>
  */
 public class WorkAtHomeCraftingModule extends CraftingWorkerBuildingModule {

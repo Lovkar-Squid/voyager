@@ -19,7 +19,7 @@ import net.minecraft.world.phys.AABB;
  *
  * <p>Every Observatory and Photo Booth blueprint has photograph frames on its walls - Exposure's
  * own hanging frames, small, medium and large - and until now they hung empty, because the
- * pictures the two workers made went on the shelf. Marko: "make it so both can put pictures into
+ * pictures the two workers made went on the shelf. Lovkar: "make it so both can put pictures into
  * the frames in their huts." So a finished picture goes on the wall first: into an empty frame if
  * there is one, and when every frame is full, into the frame with the oldest picture, whose print
  * comes down and goes on the shelf. The walls always show the newest work and nothing is thrown

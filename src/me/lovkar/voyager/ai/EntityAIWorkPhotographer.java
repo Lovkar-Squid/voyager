@@ -51,8 +51,8 @@ import org.jetbrains.annotations.Nullable;
  * lens, filter and flash the colony fitted to it - load a fresh roll if it needs one, walk to where
  * the picture is, hold the camera up, and expose a picture drawn ray by ray on the server out of
  * the world's own map colours (see {@link me.lovkar.voyager.compat.ExposureCamera}). The negative
- * goes on the roll, a full roll goes on the shelf for the darkroom, and the camera goes back where
- * it was. It takes a few seconds and you can watch them do it.</p>
+ * goes on the roll, a full roll of his own pictures is used up (they are all printed already), and
+ * the camera goes back where it was. It takes a few seconds and you can watch them do it.</p>
  *
  * <p>Three kinds of picture, in order of priority:</p>
  * <ol>
@@ -109,6 +109,8 @@ public class EntityAIWorkPhotographer
     private byte[] film = new byte[0];
     private Object shot;
     private int rowsDone;
+    /** How long the server spent drawing the picture in progress, all steps and the longest one - for the log. */
+    private long drawNanos, longestStepNanos;
     private long lastShot = -BETWEEN_SHOOTS;
     private long lastChronicle = -BETWEEN_CHRONICLE;
     /** Game time before which the racks are not counted again for a camera. */
@@ -392,27 +394,38 @@ public class EntityAIWorkPhotographer
     }
 
     /**
-     * Make sure there is film in the camera with room on it. A full roll comes out and goes on the
-     * shelf for the darkroom; a fresh roll comes off the shelf and goes in; no roll at all and the
-     * photographer asks for one and puts the camera back.
+     * Make sure there is film in the camera with room on it. A full roll comes out and is used up
+     * (or, with somebody else's pictures on it, goes on the shelf for the darkroom); a fresh roll
+     * comes out of the pack or off the shelf and goes in; no roll at all and the photographer asks
+     * for one and puts the camera back.
      */
     private boolean loadFilmIfNeeded() {
+        final String name = worker.getCitizenData().getName();
+        final int cleared = ColonyCamera.clearUsedUpRolls(building);
+        if (cleared > 0) {
+            Voyager.LOGGER.info("[Photo Booth] {} used up {} full roll(s) left on the shelf", name, cleared);
+        }
         if (loadedFilmWanted(camera)) {
             return true;
         }
         if (ColonyCamera.hasFilm(camera)) {
             // A full roll - or, since the studio can be told which film to use, a roll of the
-            // wrong kind. It comes out with its pictures on it and waits on the shelf.
+            // wrong kind. A full roll of nothing but his own pictures is used up: each of them was
+            // developed the moment it was taken and is in an album or a frame already. Anything
+            // else comes out with its pictures on it and waits on the shelf.
             final boolean full = !ColonyCamera.hasFreeFrame(camera);
             final ItemStack out = ColonyCamera.ejectFilm(camera);
-            if (!out.isEmpty()) {
+            if (full && ColonyCamera.isUsedUpColonyRoll(out)) {
+                Voyager.LOGGER.info("[Photo Booth] {} used up a full roll of film", name);
+            } else if (!out.isEmpty()) {
                 if (!InventoryUtils.addItemStackToProvider(building, out)
                         && !InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), out)) {
                     ColonyCamera.loadFilm(camera, out);      // nowhere to put it; it stays in the camera
                     return !full && ColonyCamera.hasFreeFrame(camera);
                 }
-                Voyager.LOGGER.info("[Photo Booth] {} put a {} roll of film on the shelf",
-                        worker.getCitizenData().getName(), full ? "full" : "half-used (not the film the studio wants)");
+                Voyager.LOGGER.info("[Photo Booth] {} put a {} on the shelf", name,
+                        full ? "full roll of film for the darkroom - it has pictures on it that are not his"
+                                : "half-used roll of film (not the film the studio wants)");
             }
         }
         final ItemStack roll = takeFilm();
@@ -424,31 +437,41 @@ public class EntityAIWorkPhotographer
         return false;
     }
 
-    /** The first roll with room on it in a handler - of the kind the studio wants, if it wants one - or -1. */
+    /**
+     * The roll with room on it in a handler that the studio's film setting takes - the plainest one
+     * that does ({@code StudioSettings.filmCost}) - or -1.
+     */
     private int filmSlot(final IItemHandler handler) {
-        final ResourceLocation wanted = wantedFilm();
+        final String choice = filmChoice();
+        int best = -1;
+        int bestCost = Integer.MAX_VALUE;
         for (int slot = 0; slot < handler.getSlots(); slot++) {
             final ItemStack stack = handler.getStackInSlot(slot);
-            if (!stack.isEmpty() && ColonyCamera.isFilmWithRoom(stack)
-                    && (wanted == null || wanted.equals(BuiltInRegistries.ITEM.getKey(stack.getItem())))) {
-                return slot;
+            if (stack.isEmpty() || !ColonyCamera.isFilmWithRoom(stack)) {
+                continue;
+            }
+            final int traits = ColonyCamera.filmTraits(stack);
+            if (!me.lovkar.voyager.photo.StudioSettings.filmMatches(choice, traits)) {
+                continue;
+            }
+            final int cost = me.lovkar.voyager.photo.StudioSettings.filmCost(choice, traits);
+            if (cost < bestCost) {
+                best = slot;
+                bestCost = cost;
             }
         }
-        return -1;
+        return best;
     }
 
-    /** The roll the studio's film setting asks for, or null for whatever is on the shelf. */
-    private @Nullable ResourceLocation wantedFilm() {
-        return building == null ? null : me.lovkar.voyager.photo.StudioSettings.filmItem(building.filmChoice());
+    /** The studio's film setting ("whatever is on the shelf" without a booth). */
+    private String filmChoice() {
+        return building == null ? me.lovkar.voyager.photo.StudioSettings.FILM_ANY : building.filmChoice();
     }
 
-    /** Is there a roll in this camera with a frame left, of the kind the studio wants? */
+    /** Is there a roll in this camera with a frame left, of a kind the studio's film setting takes? */
     private boolean loadedFilmWanted(final ItemStack cam) {
-        if (!ColonyCamera.hasFreeFrame(cam)) {
-            return false;
-        }
-        final ResourceLocation wanted = wantedFilm();
-        return wanted == null || wanted.toString().equals(ColonyCamera.filmId(cam));
+        return ColonyCamera.hasFreeFrame(cam)
+                && me.lovkar.voyager.photo.StudioSettings.filmMatches(filmChoice(), ColonyCamera.loadedFilmTraits(cam));
     }
 
     /**
@@ -765,8 +788,10 @@ public class EntityAIWorkPhotographer
             }
             shot = ColonyCamera.open(level, worker, camera, fov);
         }
-        film = ColonyCamera.blank();
+        film = ColonyCamera.blank(shot);
         rowsDone = 0;
+        drawNanos = 0L;
+        longestStepNanos = 0L;
         if (film.length == 0 || shot == null) {
             putCameraBack();
             lastShot = world.getGameTime();
@@ -825,13 +850,18 @@ public class EntityAIWorkPhotographer
             return abandon();                                   // the camera left the pack somehow
         }
         holdCamera();                                           // MineColonies may have swapped tools
-        if (!ColonyCamera.renderBand(level, worker, shot, film, rowsDone, ROWS_PER_STEP)) {
+        final int rows = ColonyCamera.rowsPerStep(shot, ROWS_PER_STEP);
+        final long started = System.nanoTime();
+        if (!ColonyCamera.renderBand(level, worker, shot, film, rowsDone, rows)) {
             return abandon();
         }
-        rowsDone += ROWS_PER_STEP;
+        final long spent = System.nanoTime() - started;
+        drawNanos += spent;
+        longestStepNanos = Math.max(longestStepNanos, spent);
+        rowsDone += rows;
         level.sendParticles(ParticleTypes.END_ROD, worker.getX(), worker.getEyeY(), worker.getZ(),
                 1, 0.12, 0.12, 0.12, 0.0);
-        if (rowsDone < ColonyCamera.size()) {
+        if (rowsDone < ColonyCamera.size(shot)) {
             return Shoot.EXPOSE;
         }
         level.playSound(null, worker.blockPosition(), sound("item.camera.shutter_close"),
@@ -852,6 +882,7 @@ public class EntityAIWorkPhotographer
         cameraCarried();
         final boolean colour = !ColonyCamera.isBlackAndWhite(camera);
         final ItemStack photograph = ColonyCamera.develop(level, worker, shot, film, id, name, title, camera);
+        final int size = ColonyCamera.size(shot);
         film = new byte[0];
         shot = null;
         lastShot = world.getGameTime();
@@ -907,7 +938,8 @@ public class EntityAIWorkPhotographer
             }
         }
         incrementActionsDoneAndDecSaturation();
-        Voyager.LOGGER.info("[Photo Booth] {} took a photograph ({}, {}) on {}", name, done, id, shotOn);
+        Voyager.LOGGER.info("[Photo Booth] {} took a photograph ({}, {}) on {}, {}x{} pixels, drawn in {} ms (longest step {} ms)",
+                name, done, id, shotOn, size, size, drawNanos / 1_000_000L, longestStepNanos / 1_000_000L);
         chronicleJob = null;
         viewpoint = null;
         viewTarget = null;

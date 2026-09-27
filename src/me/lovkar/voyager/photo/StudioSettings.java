@@ -33,6 +33,8 @@ public final class StudioSettings {
     public static final String FILM_COLOUR = "com.voyager.setting.film.colour";
     public static final String FILM_BW_FAST = "com.voyager.setting.film.bw_fast";
     public static final String FILM_COLOUR_FAST = "com.voyager.setting.film.colour_fast";
+    public static final String FILM_BW_HIRES = "com.voyager.setting.film.bw_hires";
+    public static final String FILM_COLOUR_HIRES = "com.voyager.setting.film.colour_hires";
 
     public static final String FILTER_CAMERA = "com.voyager.setting.filter.camera";
     public static final String FILTER_NONE = "com.voyager.setting.filter.none";
@@ -52,9 +54,17 @@ public final class StudioSettings {
     private StudioSettings() {
     }
 
-    /** The film setting, "whatever is on the shelf" first - what the booth has always done. */
+    /**
+     * The film setting, "whatever is on the shelf" first - what the booth has always done. The
+     * high-resolution rolls are Exposure: Expanded's, so they are offered only when it is there.
+     * (The choice is saved by name, see {@code PhotoBoothSettingsModule}, so the list may grow.)
+     */
     public static StringSetting filmSetting() {
-        return new StringSetting(FILM_ANY, FILM_BW, FILM_COLOUR, FILM_BW_FAST, FILM_COLOUR_FAST);
+        final List<String> values = new ArrayList<>(List.of(FILM_ANY, FILM_BW, FILM_COLOUR, FILM_BW_FAST, FILM_COLOUR_FAST));
+        if (expanded()) {
+            values.addAll(List.of(FILM_BW_HIRES, FILM_COLOUR_HIRES));
+        }
+        return new StringSetting(values, 0);
     }
 
     /**
@@ -78,21 +88,62 @@ public final class StudioSettings {
         }
     }
 
-    /** The roll a film setting asks for; null for "whatever is on the shelf". */
-    public static @Nullable ResourceLocation filmItem(final String choice) {
+    /**
+     * Does a roll of this kind ({@link FilmTraits}, from {@code ColonyCamera.filmTraits}) do for the
+     * film setting? The settings choose a kind, not an item: "black and white" is any black-and-white
+     * roll that is not a fast one - Exposure's own, or Expanded's high-capacity and high-resolution
+     * rolls. Expanded's vanity films (Game Boy, NES, C64, CGA) are only ever used on "whatever is on
+     * the shelf": the colonist's picture is drawn in the map's colours, not in their palettes.
+     */
+    public static boolean filmMatches(final String choice, final int traits) {
+        if (!FilmTraits.isFilm(traits)) {
+            return false;
+        }
+        final boolean bw = FilmTraits.blackAndWhite(traits);
+        final boolean fast = FilmTraits.sensitive(traits);
+        final boolean hires = FilmTraits.highResolution(traits);
+        final boolean vanity = FilmTraits.vanity(traits);
         return switch (choice == null ? FILM_ANY : choice) {
-            case FILM_BW -> id("exposure", "black_and_white_film");
-            case FILM_COLOUR -> id("exposure", "color_film");
-            case FILM_BW_FAST -> id("exposure", "high_sensitivity_black_and_white_film");
-            case FILM_COLOUR_FAST -> id("exposure", "high_sensitivity_color_film");
-            default -> null;
+            case FILM_BW -> bw && !fast && !vanity;
+            case FILM_COLOUR -> !bw && !fast && !vanity;
+            case FILM_BW_FAST -> bw && fast && !vanity;
+            case FILM_COLOUR_FAST -> !bw && fast && !vanity;
+            case FILM_BW_HIRES -> bw && hires && !vanity;
+            case FILM_COLOUR_HIRES -> !bw && hires && !vanity;
+            default -> true;
         };
     }
 
-    /** The roll to ask the colony for when there is none: the chosen kind, or plain black-and-white. */
+    /**
+     * Among the rolls that do, which to spend first - lowest first: the plainest roll that does the
+     * job, so a high-resolution, fast or vanity roll is only used up when the setting asks for it
+     * or nothing else is left.
+     */
+    public static int filmCost(final String choice, final int traits) {
+        final String c = choice == null ? FILM_ANY : choice;
+        int cost = 0;
+        if (FilmTraits.highResolution(traits) && !FILM_BW_HIRES.equals(c) && !FILM_COLOUR_HIRES.equals(c)) {
+            cost += 2;
+        }
+        if (FilmTraits.sensitive(traits) && !FILM_BW_FAST.equals(c) && !FILM_COLOUR_FAST.equals(c)) {
+            cost += 1;
+        }
+        if (FilmTraits.vanity(traits)) {
+            cost += 4;
+        }
+        return cost;
+    }
+
+    /** The roll to ask the colony for when there is none: one of the chosen kind, or plain black and white. */
     public static ResourceLocation filmToRequest(final String choice) {
-        final ResourceLocation wanted = filmItem(choice);
-        return wanted != null ? wanted : id("exposure", "black_and_white_film");
+        return switch (choice == null ? FILM_ANY : choice) {
+            case FILM_COLOUR -> id("exposure", "color_film");
+            case FILM_BW_FAST -> id("exposure", "high_sensitivity_black_and_white_film");
+            case FILM_COLOUR_FAST -> id("exposure", "high_sensitivity_color_film");
+            case FILM_BW_HIRES -> id("exposure_expanded", "hires_black_and_white_film");
+            case FILM_COLOUR_HIRES -> id("exposure_expanded", "hires_color_film");
+            default -> id("exposure", "black_and_white_film");
+        };
     }
 
     /** The item a filter setting fits into the camera; null for "as fitted" and for "no filter". */
