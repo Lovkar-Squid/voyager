@@ -114,12 +114,13 @@ and with Expanded high-resolution, which makes the pictures twice as sharp) and 
 (red, orange, yellow, green, blue, sepia - or, with Expanded, pencil sketch, outline, soft focus,
 mirror, faded and vivid) that the photographer loads and fits before every picture; a full roll
 of his own pictures is used up, since they are all printed already. Every building the builder finishes is photographed for the **colony chronicle**, an
-album on the shelf signed as a volume when it is full; from level 2 **visitors come in for a
-portrait** and, with Trade Post for MineColonies installed, pay for it in coins. Both huts have
+album on the shelf signed as a volume when it is full; between times he walks round town for a
+**portrait** of a colonist out of doors or a **view** of one of its buildings; from level 2
+**visitors come in for a portrait** and, with Trade Post for MineColonies installed, pay for it in coins. Both huts have
 photograph frames on their walls and both workers hang their pictures in them - an empty frame
 first, then over the oldest picture, whose print goes on the shelf - so the walls always show the
 newest work: the astronomer's night-sky prints and lookout photographs in the study, the
-photographer's portraits on the gallery wall.
+photographer's portraits and views on the gallery wall.
 
 ## Requirements
 
