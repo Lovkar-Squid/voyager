@@ -200,6 +200,7 @@
   "voyager:photographer.skills.desc": "Creativity decides what they can be taught, Dexterity how steady the hand is at the enlarger.",
   "com.voyager.photo.portrait": "Portrait of %1$s",
   "com.voyager.photo.view": "%1$s",
+  "com.voyager.photo.view_of": "%1$s, %2$s",
   "com.voyager.photo.sold": "%1$s bought their portrait from %3$s for %2$s",
   "com.voyager.photo.sat": "%1$s sat for a portrait at the Photo Booth",
   "com.voyager.photo.chronicle": "%1$s, level %2$s (day %3$s)",

@@ -54,7 +54,7 @@ import org.jetbrains.annotations.Nullable;
  * goes on the roll, a full roll of his own pictures is used up (they are all printed already), and
  * the camera goes back where it was. It takes a few seconds and you can watch them do it.</p>
  *
- * <p>Three kinds of picture, in order of priority:</p>
+ * <p>Four kinds of picture, in order of priority:</p>
  * <ol>
  *   <li><b>A sitting.</b> A visitor has walked in and is standing at the mark. Money is waiting;
  *       the bench can wait. The print leaves with the visitor and the colony is paid in Trade Post
@@ -62,8 +62,11 @@ import org.jetbrains.annotations.Nullable;
  *   <li><b>The chronicle.</b> The builder finished something. When the bench is quiet the
  *       photographer walks out to a spot with a view of the new building and photographs it for the
  *       colony's album.</li>
- *   <li><b>A portrait.</b> Nothing else to do, a colonist nearby, daylight: a picture for the
- *       shelf, now and then.</li>
+ *   <li><b>A walk round town.</b> Nothing else to do, daylight, now and then: out to a colonist
+ *       who is out of doors and awake, to a place a few blocks off where nothing stands between
+ *       the lens and his face, for a portrait; or out to one of the colony's buildings for a view.
+ *       Either goes on the studio's gallery wall. Nobody in sight, no picture: the camera stays on
+ *       the shelf rather than photograph the studio's own wall.</li>
  * </ol>
  */
 public class EntityAIWorkPhotographer
@@ -87,7 +90,14 @@ public class EntityAIWorkPhotographer
 
     /** What the current picture is of. */
     private enum Assignment {
-        PORTRAIT, SITTING, CHRONICLE
+        /** A colonist, photographed where he is, out of doors. */
+        PORTRAIT,
+        /** A paying visitor at the studio's mark. */
+        SITTING,
+        /** A building the builder has just finished, for the album. */
+        CHRONICLE,
+        /** One of the colony's buildings, for the gallery wall: the photographer's walk round town. */
+        VIEW
     }
 
     private static final int TICK_DELAY = 10;
@@ -101,6 +111,12 @@ public class EntityAIWorkPhotographer
     private static final int WALK_ATTEMPTS_OUTSIDE = 40;
     /** How far from a building's edge the chronicle photograph is taken from. */
     private static final int VIEW_STANDOFF = 6;
+    /** How far from the booth the photographer walks out for a portrait or a view. */
+    private static final int OUTING_REACH = 64;
+    /** How many times he walks round to a subject who has moved before he lets him go. */
+    private static final int MAX_REPLANS = 3;
+    /** The farthest a portrait is taken from, eye to eye. */
+    private static final double PORTRAIT_RANGE = 8.0;
 
     private static final ResourceLocation CAMERA = ResourceLocation.fromNamespaceAndPath("exposure", "camera");
     private static final ResourceLocation FILM = ResourceLocation.fromNamespaceAndPath("exposure", "black_and_white_film");
@@ -134,6 +150,10 @@ public class EntityAIWorkPhotographer
     private @Nullable BlockPos viewpoint;
     private @Nullable Vec3 viewTarget;
     private double viewFov;
+    /** The building a {@link Assignment#VIEW} is of. */
+    private @Nullable IBuilding viewOf;
+    /** How often this portrait's subject has been walked round to already. */
+    private int replans;
 
     public EntityAIWorkPhotographer(final @NotNull JobPhotographer job) {
         super(job);
@@ -248,12 +268,125 @@ public class EntityAIWorkPhotographer
             return Shoot.WALK_TO_VIEWPOINT;
         }
         if (wantsToShoot()) {
-            assignment = Assignment.PORTRAIT;
-            walkAttempts = 0;
-            job.setStatus(JobPhotographer.Status.PORTRAIT, "going to the studio to take a colonist's portrait");
-            return Shoot.WALK_TO_STUDIO;
+            // Out into the town: a colonist where he is, or one of the buildings. Never the studio
+            // with nobody in it - that photographed the studio's own wall and called it the colony.
+            final boolean portraitFirst = worker.getRandom().nextBoolean();
+            if (portraitFirst ? planPortrait() || planView() : planView() || planPortrait()) {
+                walkAttempts = 0;
+                if (assignment == Assignment.PORTRAIT) {
+                    job.setStatus(JobPhotographer.Status.PORTRAIT, "walking out to take "
+                            + subject.getName().getString() + "'s portrait");
+                } else {
+                    job.setStatus(JobPhotographer.Status.CHRONICLE, "walking round town to photograph "
+                            + Component.translatable(viewOf.getBuildingDisplayName()).getString() + " for the gallery");
+                }
+                return Shoot.WALK_TO_VIEWPOINT;
+            }
+            lastShot = world.getGameTime();        // nothing worth a picture right now; try again later
         }
         return next;
+    }
+
+    // ------------------------------------------------------------------ the walk round town
+
+    /**
+     * A portrait outing: a colonist out of doors and awake, within reach of the booth, and a place
+     * to stand a few blocks from him with nothing between the lens and his face. Sets
+     * {@link #subject} and {@link #viewpoint}.
+     */
+    private boolean planPortrait() {
+        final BlockPos home = building.getPosition();
+        final List<AbstractEntityCitizen> outside = new java.util.ArrayList<>();
+        for (final com.minecolonies.api.colony.ICitizenData data : building.getColony().getCitizenManager().getCitizens()) {
+            final AbstractEntityCitizen other = data.getEntity().orElse(null);
+            if (other == null || other == worker || !other.isAlive() || other.level() != world
+                    || other.getCitizenSleepHandler().isAsleep()
+                    || other.blockPosition().distSqr(home) > (double) OUTING_REACH * OUTING_REACH
+                    || !world.canSeeSky(other.blockPosition().above())) {
+                continue;
+            }
+            outside.add(other);
+        }
+        java.util.Collections.shuffle(outside, new java.util.Random(worker.getRandom().nextLong()));
+        for (final AbstractEntityCitizen other : outside) {
+            if (standFor(other)) {
+                assignment = Assignment.PORTRAIT;
+                subject = other;
+                replans = 0;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Where to stand for a portrait of this subject: three to five blocks off, in front of him if
+     * the ground allows, with a clear line from the camera to his eyes. Sets {@link #viewpoint}.
+     */
+    private boolean standFor(final LivingEntity who) {
+        final Vec3 eye = who.getEyePosition();
+        final double facing = Math.atan2(who.getLookAngle().z, who.getLookAngle().x);
+        for (int turn = 0; turn < 8; turn++) {
+            // in front first, then working round both ways: 0, +45, -45, +90, -90 ...
+            final double angle = facing + Math.PI / 4 * ((turn + 1) / 2) * (turn % 2 == 0 ? 1 : -1);
+            for (final int r : new int[] {4, 3, 5}) {
+                final int x = (int) Math.floor(who.getX() + Math.cos(angle) * r);
+                final int z = (int) Math.floor(who.getZ() + Math.sin(angle) * r);
+                final BlockPos stand = standable(x, z, who.blockPosition().getY());
+                if (stand == null) {
+                    continue;
+                }
+                final Vec3 lens = new Vec3(stand.getX() + 0.5, stand.getY() + worker.getEyeHeight(), stand.getZ() + 0.5);
+                if (clearBetween(lens, eye)) {
+                    viewpoint = stand;
+                    viewTarget = null;
+                    viewFov = 0.0;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A view outing: one of the colony's finished buildings within reach of the booth, photographed
+     * from outside the way the chronicle does it. Sets {@link #viewOf} and the viewpoint.
+     */
+    private boolean planView() {
+        final BlockPos home = building.getPosition();
+        final List<IBuilding> around = new java.util.ArrayList<>();
+        for (final IBuilding b : building.getColony().getServerBuildingManager().getBuildings().values()) {
+            if (b != building && b.getBuildingLevel() >= 1
+                    && b.getPosition().distSqr(home) <= (double) OUTING_REACH * OUTING_REACH) {
+                around.add(b);
+            }
+        }
+        java.util.Collections.shuffle(around, new java.util.Random(worker.getRandom().nextLong()));
+        for (int i = 0; i < Math.min(5, around.size()); i++) {
+            if (frame(around.get(i))) {
+                assignment = Assignment.VIEW;
+                viewOf = around.get(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Nothing solid between two points - what the camera would see along that line. */
+    private boolean clearBetween(final Vec3 from, final Vec3 to) {
+        return world.clip(new net.minecraft.world.level.ClipContext(from, to,
+                net.minecraft.world.level.ClipContext.Block.VISUAL, net.minecraft.world.level.ClipContext.Fluid.NONE,
+                worker)).getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+    }
+
+    /** The subject can be photographed from where the photographer stands now. */
+    private boolean inSight(final @Nullable LivingEntity who) {
+        if (who == null || !who.isAlive() || who.level() != world) {
+            return false;
+        }
+        final Vec3 eye = who.getEyePosition();
+        return worker.getEyePosition().distanceToSqr(eye) <= PORTRAIT_RANGE * PORTRAIT_RANGE
+                && clearBetween(worker.getEyePosition(), eye);
     }
 
     // ------------------------------------------------------------------ deciding
@@ -629,6 +762,13 @@ public class EntityAIWorkPhotographer
         if (viewpoint == null) {
             return giveUp();
         }
+        if (assignment == Assignment.PORTRAIT && subject != null
+                && subject.distanceToSqr(Vec3.atBottomCenterOf(viewpoint)) > 49.0) {
+            // he has moved on while we walked: find a new place to stand, a few times at most
+            if (!subject.isAlive() || ++replans > MAX_REPLANS || !standFor(subject)) {
+                return callOff("lost the subject, " + subject.getName().getString() + ", on the way");
+            }
+        }
         if (walkToSafePos(viewpoint)) {
             walkAttempts = 0;
             return Shoot.AIM;
@@ -733,6 +873,43 @@ public class EntityAIWorkPhotographer
      * the whole exposure.</p>
      */
     private IAIState aim() {
+        double fov = 0.0;
+        switch (assignment) {
+            case SITTING -> {
+                subject = building.sitterEntity();
+                if (subject == null || subject.distanceToSqr(Vec3.atCenterOf(building.getSitterPosition())) > 36.0) {
+                    // The visitor wandered off. Somebody else in the studio, then, or nobody.
+                    final IVisitorData gone = building.sitterData();
+                    if (gone != null) {
+                        building.cancelSitting(gone);
+                    }
+                    assignment = Assignment.PORTRAIT;
+                    subject = nearestSitter();
+                }
+            }
+            case CHRONICLE, VIEW -> {
+                subject = null;
+                fov = viewFov;
+            }
+            default -> {
+                if (subject == null) {
+                    subject = nearestSitter();
+                }
+            }
+        }
+        // A paid sitting at the mark is shot as it always was; the check is for everything else.
+        if (assignment == Assignment.PORTRAIT) {
+            if (!inSight(subject)) {
+                // A portrait with nobody in it was a picture of the wall. Walk round to him again,
+                // or let it go - before the camera comes off the shelf, so no film is spent.
+                if (subject != null && subject.isAlive() && ++replans <= MAX_REPLANS && standFor(subject)) {
+                    return Shoot.WALK_TO_VIEWPOINT;
+                }
+                lastShot = world.getGameTime();
+                return callOff(subject == null ? "nobody to photograph"
+                        : "no clear view of " + subject.getName().getString());
+            }
+        }
         camera = takeCamera();
         if (camera.isEmpty()) {
             lastShot = world.getGameTime();
@@ -749,31 +926,12 @@ public class EntityAIWorkPhotographer
         holdCamera();
         worker.setRenderMetadata(JobPhotographer.META_CAMERA);
 
-        double fov = 0.0;
-        switch (assignment) {
-            case SITTING -> {
-                subject = building.sitterEntity();
-                if (subject == null || subject.distanceToSqr(Vec3.atCenterOf(building.getSitterPosition())) > 36.0) {
-                    // The visitor wandered off. Somebody else, then, or nobody.
-                    final IVisitorData gone = building.sitterData();
-                    if (gone != null) {
-                        building.cancelSitting(gone);
-                    }
-                    assignment = Assignment.PORTRAIT;
-                    subject = nearestSitter();
-                }
-            }
-            case CHRONICLE -> {
-                subject = null;
-                fov = viewFov;
-            }
-            default -> subject = nearestSitter();
-        }
         if (subject != null) {
             face(subject.getEyePosition().subtract(0.0, 0.2, 0.0));
             job.setStatus(assignment == Assignment.SITTING ? JobPhotographer.Status.SITTING : JobPhotographer.Status.PORTRAIT,
-                    "camera up in the studio, photographing " + subject.getName().getString());
-        } else if (assignment == Assignment.CHRONICLE && viewTarget != null) {
+                    (assignment == Assignment.SITTING ? "camera up in the studio, photographing " : "camera up, photographing ")
+                            + subject.getName().getString());
+        } else if ((assignment == Assignment.CHRONICLE || assignment == Assignment.VIEW) && viewTarget != null) {
             face(viewTarget);
         }
         worker.swing(InteractionHand.MAIN_HAND);          // the camera comes up
@@ -821,7 +979,7 @@ public class EntityAIWorkPhotographer
         worker.getLookControl().setLookAt(target.x, target.y, target.z);
     }
 
-    /** Any citizen but this one, standing close enough to be the subject. */
+    /** Any citizen but this one, standing close enough to be the subject and in plain sight. */
     private LivingEntity nearestSitter() {
         final AABB around = worker.getBoundingBox().inflate(8.0);
         final List<AbstractEntityCitizen> nearby = world.getEntitiesOfClass(AbstractEntityCitizen.class, around,
@@ -830,7 +988,7 @@ public class EntityAIWorkPhotographer
         double closest = Double.MAX_VALUE;
         for (final AbstractEntityCitizen other : nearby) {
             final double d = other.distanceToSqr(worker);
-            if (d < closest) {
+            if (d < closest && inSight(other)) {
                 closest = d;
                 best = other;
             }
@@ -938,16 +1096,18 @@ public class EntityAIWorkPhotographer
             }
         }
         incrementActionsDoneAndDecSaturation();
-        Voyager.LOGGER.info("[Photo Booth] {} took a photograph ({}, {}) on {}, {}x{} pixels, drawn in {} ms (longest step {} ms)",
-                name, done, id, shotOn, size, size, drawNanos / 1_000_000L, longestStepNanos / 1_000_000L);
+        Voyager.LOGGER.info("[Photo Booth] {} took a photograph, \"{}\" ({}, {}) on {}, {}x{} pixels, drawn in {} ms (longest step {} ms)",
+                name, title.getString(), done, id, shotOn, size, size, drawNanos / 1_000_000L, longestStepNanos / 1_000_000L);
         chronicleJob = null;
         viewpoint = null;
         viewTarget = null;
+        viewOf = null;
+        replans = 0;
         assignment = Assignment.PORTRAIT;
         return AIWorkerState.START_WORKING;
     }
 
-    /** "Portrait of X" if somebody is in it; the building, for the chronicle; otherwise the colony. */
+    /** "Portrait of X" if somebody is in it; the building, for the chronicle and a view; otherwise the colony. */
     private Component titleFor(final Object finished) {
         if (assignment == Assignment.CHRONICLE) {
             final IBuilding about = building.chronicleSubject(chronicleJob);
@@ -963,7 +1123,15 @@ public class EntityAIWorkPhotographer
                 && visitor.getCitizenData() != null) {
             return Component.translatable("com.voyager.photo.portrait", visitor.getCitizenData().getName());
         }
-        for (final Entity seen : ColonyCamera.inFrame(finished)) {
+        if (assignment == Assignment.VIEW && viewOf != null) {
+            return Component.translatable("com.voyager.photo.view_of",
+                    Component.translatable(viewOf.getBuildingDisplayName()), building.getColony().getName());
+        }
+        final List<Entity> inFrame = ColonyCamera.inFrame(finished);
+        if (subject instanceof AbstractEntityCitizen sitter && sitter.getCitizenData() != null && inFrame.contains(sitter)) {
+            return Component.translatable("com.voyager.photo.portrait", sitter.getCitizenData().getName());
+        }
+        for (final Entity seen : inFrame) {
             if (seen instanceof AbstractEntityCitizen citizen && citizen.getCitizenData() != null) {
                 return Component.translatable("com.voyager.photo.portrait", citizen.getCitizenData().getName());
             }
@@ -994,6 +1162,9 @@ public class EntityAIWorkPhotographer
         chronicleJob = null;
         viewpoint = null;
         viewTarget = null;
+        viewOf = null;
+        replans = 0;
+        subject = null;
         assignment = Assignment.PORTRAIT;
         return AIWorkerState.START_WORKING;
     }

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.9 - 2026-10-06 - the photographer walks round town
+
+- **The photographer no longer photographs his own studio wall.**
+  - Between other work he used to take "a portrait" in the studio of whoever stood within eight blocks of him, through the studio's walls if need be.
+  - With nobody there he took the picture anyway: a dark photograph of the wall, named after the colony.
+- **Now he walks round town for it.** Now and then, in daylight, he goes out for one of two pictures:
+  - **A portrait** of a colonist who is out of doors and awake. He takes it from a spot three to five blocks in front of them, with nothing between the lens and their face.
+  - **A view** of one of the colony's buildings within 64 blocks of the booth. It is named after the building and the colony, for example "Observatory, SquidVile".
+  - If the colonist walks off, he follows them up to three times. With nobody in clear sight he takes no picture and spends no film.
+  - Both kinds go on the studio's gallery wall, as before.
+- **Paid portraits are unchanged.** A visitor at the studio's mark is photographed there and pays in Trade Post coins.
+- The log line of every photograph gives its title.
+- **Tested headless**, with the Photo Booth, the Observatory and the public pack's server mods:
+  - In 15 minutes the photographer took four portraits of a colonist out of doors, up to 31 blocks from the booth, and two views of the Observatory.
+  - None of the pictures was named after the colony alone.
+  - A visitor at the mark bought their portrait for 1,000 coins, as with 0.3.8.
+
 ## 0.3.8 - 2026-09-27 - sharper pictures on high-resolution film, and full rolls used up
 
 - **High-resolution film makes sharper photographs.** Exposure: Expanded's high-resolution rolls
