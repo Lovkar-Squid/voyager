@@ -26,8 +26,14 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
     private static final String TAG_AWAY = "away";
     private static final String TAG_FINDS = "finds";
     private static final String TAG_HAUL = "haul";
+    private static final String TAG_DRIVEN_BACK = "driven_back";
 
     private boolean away = false;
+    /**
+     * Permanent death off: this trip ended in a retreat and the Voyager is on the way home wounded.
+     * Saved, so a reload on the way home keeps both the wound and the record straight.
+     */
+    private boolean drivenBack = false;
     /** Transient: the send-off / homecoming show is running and the AI waits for its key moment. */
     private boolean countingDown = false;
     /** Transient: the Voyager gave up walking to the departure point (shown as an interaction). */
@@ -113,6 +119,14 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         this.away = away;
     }
 
+    public boolean isDrivenBack() {
+        return drivenBack;
+    }
+
+    public void setDrivenBack(final boolean drivenBack) {
+        this.drivenBack = drivenBack;
+    }
+
     public boolean isCountingDown() {
         return countingDown;
     }
@@ -149,6 +163,7 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
     public CompoundTag serializeNBT(final @NotNull HolderLookup.Provider provider) {
         final CompoundTag compound = super.serializeNBT(provider);
         compound.putBoolean(TAG_AWAY, away);
+        compound.putBoolean(TAG_DRIVEN_BACK, drivenBack);
         compound.put(TAG_FINDS, writeStacks(finds, provider));
         compound.put(TAG_HAUL, writeStacks(haul, provider));
         return compound;
@@ -158,6 +173,7 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
     public void deserializeNBT(final @NotNull HolderLookup.Provider provider, final CompoundTag compound) {
         super.deserializeNBT(provider, compound);
         away = compound.getBoolean(TAG_AWAY);
+        drivenBack = compound.getBoolean(TAG_DRIVEN_BACK);
         readStacks(compound.getList(TAG_FINDS, Tag.TAG_COMPOUND), finds, provider);
         readStacks(compound.getList(TAG_HAUL, Tag.TAG_COMPOUND), haul, provider);
     }
