@@ -1,0 +1,18 @@
+# Seeded by run-rigtest.ps1 -Name expedition -Mode wounded: the deadly setup of the lost mode (the dragon
+# certain on a short level-5 trip) with permanent death OFF, so the blow that would kill drives the Voyager
+# back instead. Every reward chance is 1.0: a driven-back Voyager must still bring none. Every key is set, so
+# a value that silently fell back to the mod's default shows in the probe's config check.
+
+[expeditions]
+	tripsPerLaunchWindow = 2
+	rationsPerVoyager = 4
+	supplyMultiplier = 1.0
+	tripLengthMultiplier = 0.25
+	dragonChance = 1.0
+	permanentDeath = false
+
+[rewards]
+	souvenirChance = 1.0
+	endCityBookChance = 1.0
+	endMapChance = 1.0
+	bookEnchantments = ["minecraft:protection", "minecraft:fire_protection", "minecraft:blast_protection", "minecraft:projectile_protection", "minecraft:feather_falling", "minecraft:respiration", "minecraft:depth_strider", "minecraft:unbreaking", "minecraft:efficiency", "minecraft:fortune", "minecraft:silk_touch", "minecraft:sharpness", "minecraft:smite", "minecraft:looting", "minecraft:power", "minecraft:punch"]
