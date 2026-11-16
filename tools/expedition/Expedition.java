@@ -311,7 +311,12 @@ public class Expedition {
         sb.append(", rocket away ").append(building != null && building.isRocketAway());
         if (job != null) {
             sb.append(", away ").append(job.isAway()).append(", driven back ").append(job.isDrivenBack())
-                    .append(", trophies rolled ").append(job.isTrophiesRolled());
+                    .append(", trophies rolled ").append(job.isTrophiesRolled())
+                    .append(", AI ").append(job.getWorkerAI() == null ? "-" : job.getWorkerAI().getState());
+        }
+        if (citizen != null) {
+            sb.append(", saturation ").append(citizen.getSaturation())
+                    .append(", citizen status ").append(citizen.getStatus() == null ? "-" : citizen.getStatus().getTranslationKey());
         }
         if (phase == Phase.WAIT_UNLOAD) {
             sb.append(", pack ").append(counts(packStacks())).append(", gained and still in the pack ").append(gainedStillInPack());
@@ -1215,6 +1220,11 @@ public class Expedition {
     private void onHome(final Optional<AbstractEntityCitizen> entity) {
         home = true;
         homeTick = tick;
+        // the test colony has no restaurant: a colonist who comes home hungry goes looking for one (and
+        // wanders the colony for good) before the worker AI gets to unload the haul. A real colony feeds
+        // them; here the probe does.
+        say("home at t=" + tick + " with saturation " + citizen.getSaturation() + ": fed to the full, the colony has no restaurant");
+        citizen.setSaturation(ICitizenData.MAX_SATURATION);
         final double dist = entity.isPresent() ? Math.sqrt(entity.get().blockPosition().distSqr(building.getPosition())) : -1;
         check("home: back visible by the hut", entity.isPresent() && !entity.get().isInvisible() && dist <= 16.0,
                 entity.isEmpty() ? "no entity" : (entity.get().isInvisible() ? "invisible" : "visible") + ", " + (int) dist + " blocks from the hut at t=" + tick);
@@ -1296,6 +1306,8 @@ public class Expedition {
     private void verify() {
         say("verify at t=" + tick + ", hut " + counts(hutStacks()) + ", pack " + counts(packStacks()));
         check("departure line read", departureLineSeen, "");
+        // an empty loot roll is nothing to carry: the pack's "no room" warning must not fire for one
+        checkEq("no warning about an empty stack", logs.count("no room in the pack for 0x"), 0);
         switch (mode) {
             case LOOP -> verifyLoop();
             case DRAGON -> verifyDragon();
