@@ -59,9 +59,10 @@
     Expedition Log; the new "no room in the pack" warning fired for it ("0x Air").
   - A Voyager lost in the End leaves no trip in progress behind on the job. With no room for a
     grave, what they still wore is dropped by the hut along with the pack, and the warning counts it.
-  - The walk home from the landing can no longer be interrupted. A driven-back Voyager can land below
-    MineColonies' 6 hp "hurt" mark; an interrupted walk restarted the expedition AI, which found them
-    still away and hid them in the End again.
+  - A Voyager back on the Launchpad walks on to the hut when their AI restarts on the way - after a
+    reload, or when MineColonies' care for a colonist below 6 hp takes them over, as it does a
+    driven-back Voyager. Before, the restarted AI found them still away, hid them in the End again and
+    brought the rocket in to land a second time. A meal or leisure no longer interrupts that walk.
 - **Tested on a dedicated server.** A headless NeoForge 21.1.249 server with MineColonies 1.1.1420
   boots Voyager and reads its config: once seeded with a non-default value for every key, once from
   the mod's own defaults (`tools/configcheck`). The trophies are checked there too
@@ -74,13 +75,13 @@
     hut, and then the AI runs for real. The research is injected as effects (the University is not
     part of the test), trips are short (trip length 0.25) and every trophy chance is 1.0.
   - `loop`: the Voyager boards, departs, the rocket (1,375 blocks) is stowed at lift-off and stands
-    on the pad again after the landing as it left, the Voyager is away out of sight for exactly the
-    computed time - Rapid Refit's shorter time to the second - comes back, carries the haul into the
-    hut and the trip is counted. The souvenir, the End-city book (not Mending) and the map of the
-    End arrive in the hut with their story (name, expedition 1, Launchpad, the fights of the trip).
-    The job and the building keep the trip, its tally and the expedition number through saving and
-    loading, and the rocket's stash survives a reload while it is away. (The test colony has no
-    restaurant, so the probe feeds the Voyager once home.)
+    on the pad again after the landing as it left, the Voyager is away out of sight for the computed
+    time (the departure line gives Rapid Refit's shorter time to the second), comes back, carries the
+    haul into the hut and the trip is counted. The souvenir, the End-city book (not Mending) and the
+    map of the End arrive in the hut with their story (name, expedition 1, Launchpad, the fights of
+    the trip). The job and the building keep the trip, its tally and the expedition number through
+    saving and loading, and the rocket's stash survives a reload while it is away. (The test colony
+    has no restaurant, so the probe feeds the Voyager once home.)
   - `dragon`: Dragon Hunt with the dragon certain. The Voyager (netherite, Protection IV, Void
     Insurance) ate a ration, beat her and brought home a dragon head, dragon's breath and a *Scale
     from the Dragon's Wake*. The win branch ran; a lost dragon fight is the lost path below.
@@ -88,9 +89,10 @@
     pack into the hut's racks, a grave was raised by the hut, the rocket came home on its own, no
     trophies. (MineColonies takes the job off a colonist who dies, so the grave keeps no trip.)
   - `wounded`: a deadly trip (no rations, half health, the dragon at the end) with permanent death
-    off: the Voyager turned back from the dragon and was left with a quarter of their health, was
-    taken out of the world on the way home and came back still wounded, then landed and walked home
-    with all their gear, empty-handed - no grave, no death on the record, a retreat counted.
+    off: the Voyager turned back from a fight (a shulker in one run, the dragon in another) and was
+    left with a quarter of their health, was taken out of the world on the way home and came back
+    still wounded, landed once - at that quarter, below MineColonies' 6 hp mark - and walked home
+    with all their gear, empty-handed: no grave, no death on the record, a retreat counted.
 
 ## 0.3.9 - 2026-10-06 - the photographer walks round town
 

@@ -113,7 +113,8 @@ import java.util.regex.Pattern;
  *   <li>{@code wounded} - a deadly trip (no rations, half health, the dragon at the end) with permanent
  *       death off: driven back wounded, home with the gear, no grave, no death, empty-handed; the
  *       entity is also taken away after the retreat to prove a respawn on the way home keeps the
- *       wound.</li>
+ *       wound, and set back to the wounded value at the landing: below MineColonies' 6 hp mark the
+ *       Voyager must still walk home after one landing.</li>
  * </ul>
  *
  * <p>Research is injected as effects (the University is not part of the test). Checks fire on edges -
@@ -174,6 +175,7 @@ public class Expedition {
     private static final Pattern TURNS_BACK = Pattern.compile("turns back from a (\\S+) at ([\\d.]+) of ([\\d.]+) hp after (\\d+) blows: the next blow could take ([\\d.]+) hp");
     private static final Pattern ATE = Pattern.compile("ate (\\d+) ration\\(s\\)");
     private static final Pattern HOME_WOUNDED = Pattern.compile("is home, wounded \\((\\d+) hp\\) and empty-handed");
+    private static final Pattern REWOUNDED = Pattern.compile("was respawned at full health on the way home - still wounded from the retreat \\((\\d+) hp\\)");
     private static final Pattern ROCKET_ALONE = Pattern.compile("Rocket at .+ is coming back without its crew");
 
     // ---------------------------------------------------------------- state
@@ -211,7 +213,7 @@ public class Expedition {
     private int lastEntityId = -1;
     // what was seen
     private boolean sawBoarding, departed, dead, home, liftedOff, landed, sawEntityWhileTravelling, sawInvisibleAway;
-    private boolean travelStarted, travelEnded, healthSetAfterTravel, discarded, respawnWanted;
+    private boolean travelStarted, travelEnded, healthSetAfterTravel, discarded, respawnWanted, landedLow;
     private int departTick = -1, travelEndTick = -1, liftOffTick = -1, landingTick = -1, deathTick = -1, homeTick = -1;
     private int drivenBackTick = -1, discardTick = -1, discardedId = -1, respawnedId = -1, travelEntityId = -1;
     private int findsAtDepart = -1, expeditionAtDepart = -1, soFarAtDepart = -1;
@@ -1138,6 +1140,15 @@ public class Expedition {
         check("landing: the rocket is back as it was at lift-off", same == rocketSolid && !building.isRocketAway(),
                 same + " of " + rocketSolid + " cells as before at t=" + tick + (wrong.isEmpty() ? "" : ", differ: " + wrong));
         expect("landing line", LANDED, 0, m -> checkEq("landing line: blocks restored", Integer.parseInt(m.group(1)), rocketSolid));
+        final Optional<AbstractEntityCitizen> entity = liveEntity();
+        if (mode == Mode.WOUNDED && entity.isPresent()) {
+            // the walk home at the wounded value, below MineColonies' 6 hp "hurt" mark (as after a respawn
+            // just before the landing): its care for hurt colonists takes the Voyager over whatever the job
+            // says, and the expedition AI it hands back must not send them into the End a second time
+            landedLow = true;
+            entity.get().setHealth(ExpeditionRules.woundedHealth(entity.get().getMaxHealth()));
+            say("landed: health set to " + entity.get().getHealth() + " of " + entity.get().getMaxHealth() + " for the walk home");
+        }
     }
 
     private void onTrophiesRolled() {
@@ -1501,8 +1512,11 @@ public class Expedition {
                         && count(hut, "minecraft:diamond_pickaxe") >= 1 && pack.isEmpty(),
                 "line " + logs.any("were returned to the") + ", hut gold " + count(hut, "minecraft:gold_ingot") + ", pickaxe "
                         + count(hut, "minecraft:diamond_pickaxe") + ", pack " + pack);
-        check("nothing left on the job", job.getFinds().isEmpty() && job.getHaul().isEmpty(),
-                "finds " + job.getFinds().size() + ", haul " + job.getHaul().size());
+        // the trip is over on the job the AI held: no itinerary, no haul, not away, no trophy roll to come
+        check("nothing left on the job", job.getFinds().isEmpty() && job.getHaul().isEmpty() && !job.isAway()
+                        && !job.isDrivenBack() && job.isTrophiesRolled(),
+                "finds " + job.getFinds().size() + ", haul " + job.getHaul().size() + ", away " + job.isAway()
+                        + ", driven back " + job.isDrivenBack() + ", trophies rolled " + job.isTrophiesRolled());
         final Set<BlockPos> graves = newGraves();
         final boolean noRoom = logs.any("No room for a grave");
         check("grave", graves.size() == 1 || noRoom, graves.size() + " new grave(s) " + graves + ", no-room line " + noRoom);
@@ -1535,7 +1549,8 @@ public class Expedition {
         everywhere.addAll(looseStacks());
         final long trophies = everywhere.stream().filter(this::isTrophy).count();
         checkEq("no trophies for a lost Voyager", trophies, 0L);
-        checkEq("expedition log: no trophies", logs.count("brings something home to remember"), 0);
+        checkEq("server log: no trophies", logs.count("brings something home to remember"), 0);
+        expeditionLogTrophies(0, 0, 0);
     }
 
     private static CompoundTag findCompoundWith(final CompoundTag tag, final String key) {
@@ -1569,9 +1584,13 @@ public class Expedition {
     private void verifyWounded() {
         final Matcher driven = logs.find(DRIVEN_BACK, 0);
         check("driven back line", driven != null, driven == null ? "none" : driven.group());
-        final int respawnLine = logs.indexOf("was respawned at full health on the way home", 0);
-        check("respawn on the way home keeps the wound", discarded && respawnedId >= 0 && respawnedId != discardedId && respawnLine >= 0,
-                "entity " + discardedId + " taken away, back as " + respawnedId + (respawnLine >= 0 ? ": " + logs.lines().get(respawnLine) : ", no re-wound line"));
+        // after the respawn the new entity is set back to the wounded value (the line names its health)
+        final Matcher rewound = logs.find(REWOUNDED, 0);
+        final int woundedHp = (int) ExpeditionRules.woundedHealth(maxHealthAtHome > 0.0f ? maxHealthAtHome : 20.0f);
+        check("respawn on the way home keeps the wound", discarded && respawnedId >= 0 && respawnedId != discardedId && rewound != null
+                        && Integer.parseInt(rewound.group(1)) == woundedHp,
+                "entity " + discardedId + " taken away, back as " + respawnedId + (rewound != null ? ": " + rewound.group() : ", no re-wound line")
+                        + " (wounded value " + woundedHp + " hp)");
         final Matcher homeLine = logs.find(HOME_WOUNDED, 0);
         check("home wounded line", homeLine != null, homeLine == null ? "none" : homeLine.group());
         check("home wounded: health measured", healthAtHomeEdge != null, healthAtHomeEdge == null ? "the retreat never ended"
@@ -1596,7 +1615,11 @@ public class Expedition {
         check("empty-handed", more.isEmpty() && job.getHaul().isEmpty(), "gained " + more + ", haul " + job.getHaul().size());
         final long trophies = hutAndPack().stream().filter(this::isTrophy).count();
         checkEq("no trophies for a retreat", trophies, 0L);
+        expeditionLogTrophies(0, 0, 0);
         check("rocket back", landed && !building.isRocketAway(), "landing t=" + landingTick);
+        final int landings = logs.count("rocket coming in to land at");
+        check("one landing, home on foot below the hurt mark", landedLow && home && landings == 1,
+                "landed at the wounded value " + landedLow + ", home " + home + ", " + landings + " landing(s)");
         check("still the Voyager", building.getAllAssignedCitizen().contains(citizen) && citizen.getJob() == job, "");
         final Matcher turn = logs.find(TURNS_BACK, 0);
         if (turn != null) {

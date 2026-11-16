@@ -167,10 +167,10 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
 
     /**
      * Nobody interrupts an expedition, and nobody walks off in the middle of a send-off. The
-     * expedition lasts until the Voyager is back in the hut, the walk from the landing included: a
-     * Voyager interrupted there (a driven-back one is below MineColonies' 6 hp "hurt" mark and would
-     * go looking for a healer) restarts the AI, which still finds them away - they vanished into the
-     * End again and landed a second time.
+     * expedition lasts until the Voyager is back in the hut, the walk from the landing included, so
+     * the breaks a job may refuse (a meal, leisure) wait until then. MineColonies' care for a hurt
+     * colonist does not ask: a driven-back Voyager below its 6 hp mark is taken over all the same, and
+     * decide() sends the restarted AI on with the walk home (see landedAlready).
      */
     @Override
     public boolean canBeInterrupted() {
@@ -236,6 +236,10 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
 
     @Override
     protected IAIState decide() {
+        if (landedAlready()) {
+            // the AI restarted on the walk home from the pad: walk on, do not vanish into the End again
+            return AIWorkerState.NETHER_RETURN;
+        }
         if (colonyTravelling() || job.isAway()) {
             job.setStatus(JobVoyager.Status.AWAY, "out in the End");
             return AIWorkerState.NETHER_AWAY;
@@ -337,6 +341,20 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
 
     private boolean colonyTravelling() {
         return worker.getCitizenData().getColony().getTravellingManager().isTravelling(worker.getCitizenData());
+    }
+
+    /**
+     * Still away on the job, but already back on the pad: the rocket stands there again, the Voyager is
+     * in sight and not travelling, and nothing of the trip is left but the walk to the hut (every find
+     * lived through, the haul packed, the trophies rolled). MineColonies' care for a hurt colonist
+     * (below 6 hp, as a driven-back Voyager lands) takes the citizen over whatever the job says, and a
+     * reload makes a new AI; either restarts this AI on that walk. The End Gate keeps no such mark, so
+     * there a restarted AI still goes through the arrival once more.
+     */
+    private boolean landedAlready() {
+        return job.isAway() && !colonyTravelling() && !building.isEndGate() && !building.isRocketAway()
+                && !worker.isInvisible() && !job.isCountingDown()
+                && job.getFinds().isEmpty() && job.getHaul().isEmpty() && job.isTrophiesRolled();
     }
 
     private BuildingVoyager.CraftingModule craftingModule() {

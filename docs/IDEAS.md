@@ -85,7 +85,8 @@ Headless NeoForge 21.1.249 server with MineColonies 1.1.1420, a real colony, the
   eaten between fights.
 - A lost Voyager: Return to Sender into the hut's racks, a grave by the hut, the rocket home alone.
 - Permanent death off: driven back, the entity taken away and respawned on the way home (still
-  wounded), home with the gear, empty-handed, no grave, no death.
+  wounded), one landing and the walk home below MineColonies' 6 hp mark, home with the gear,
+  empty-handed, no grave, no death.
 - Boot, the server config (seeded and default) and the trophies (`tools/rigboot`,
   `tools/configcheck`, `tools/trophycheck`).
 
@@ -97,9 +98,6 @@ refuses to deal, Deep Field and the Observatory's Star Charts on a trip.
 
 ## Ideas for later
 
-- Rare End-city finds at level 5: enchanted books, a "map of the End" lore item.
-- A small chance the Voyager brings back a *souvenir* named after the trip (custom item name).
-- Config: trips per window, supplies, expedition length, whether deaths are permanent.
 - Localizations beyond en_us.
 - Colonist Errands: let a player ask a Voyager for the story of the last expedition (2.1.0 adds
   the lore and the crew chatter; a dedicated voice tool could follow).
