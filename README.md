@@ -80,6 +80,33 @@ the blow that would have killed a Voyager is never dealt. They are driven back i
 home through the normal landing with a quarter of their health, empty-handed (the supplies are
 spent, the finds are lost) but with all their gear - no grave, and nobody to mourn.
 
+## Trophies from the End
+
+Now and then a Voyager brings home something to remember a trip by - on top of the haul, never
+instead of it.
+
+- **Souvenirs** (any level, 1 completed trip in 10 by default): a keepsake named after one of
+  sixteen places out in the End - a *Shard from the Hollow Spires*, a *Sprig from Chorus Reach*, a
+  *Pebble from the Long Drop*. The tooltip tells the trip: who brought it home, which expedition
+  of the Departure Point it was (from the Launchpad or the End Gate, and on which colony day) and
+  what happened out there - "Fought 2 endermen and a shulker", or "A quiet crossing". Set it down
+  on a shelf, a table or any block with a firm top and it stands on a little purpur stand, facing
+  you; pick it up again and it is the same souvenir with the same story. An anvil can rename it -
+  the story stays.
+- **The Dragon's Wake.** A Voyager who meets the dragon (Dragon Hunt) and lives, and brings home a
+  souvenir from that trip, brings a *Scale from the Dragon's Wake* - only then, and always then.
+- **End-city books** (from a level 5 Departure Point, 1 completed trip in 20): an enchanted book
+  with one enchantment from a list of ordinary ones - never Mending - at a random level.
+- **A map of the End** (level 5, 3 completed trips in 100): a hand-drawn chart of the outer
+  islands with the trip's story. A keepsake, not a working map: it never generates or loads a
+  single chunk of the End.
+
+Trophies are packed first, come home with the rest of the haul into the hut and are listed in the
+Expedition Log; with Long-range Comms the colony hears about them ("Mira brought home a Shard from
+the Hollow Spires"). A Voyager who is lost, or driven back (`permanentDeath = false`), brings none.
+The chances and the book list are in the [server config](#server-config). Both trophies are also in
+the creative tab with the hut blocks (as plain ones, without a story).
+
 ## Research
 
 **Reach for the Stars** opens its own corner of the Technology tree (all need a Departure Point):
@@ -184,7 +211,7 @@ to every player who joins. The defaults of the `expeditions` section play exactl
 | `rewards.souvenirChance` | 0.10 | 0-1 | chance per completed expedition of a souvenir from the End |
 | `rewards.endCityBookChance` | 0.05 | 0-1 | chance per completed level-5 expedition of an End-city enchanted book |
 | `rewards.endMapChance` | 0.03 | 0-1 | chance per completed level-5 expedition of a hand-drawn map of the End |
-| `rewards.bookEnchantments` | 16 ordinary enchantments | any enchantment ids | what an End-city book can carry: protection, fire_protection, blast_protection, projectile_protection, feather_falling, respiration, depth_strider, unbreaking, efficiency, fortune, silk_touch, sharpness, smite, looting, power and punch (all `minecraft:`); no Mending, no curse |
+| `rewards.bookEnchantments` | 16 ordinary enchantments | any enchantment ids | what an End-city book can carry: protection, fire_protection, blast_protection, projectile_protection, feather_falling, respiration, depth_strider, unbreaking, efficiency, fortune, silk_touch, sharpness, smite, looting, power and punch (all `minecraft:`); no Mending, no curse. An id that names no enchantment in the world is left out, with one warning in the log |
 
 The supply *list* of an expedition is not in the config: it is the datapack recipes
 `data/voyager/crafterrecipes/voyager/trip1.json` to `trip5.json` (one per building level). To change

@@ -42,6 +42,8 @@ They resolve paths relative to the repository (`tools/paths.py`), read third-par
 | `gen_hut_model.py` | the Departure Point block model (vanilla textures only) |
 | `gen_skin.py` | the Voyager suit textures and citizen icons (heads come from MineColonies' Nether Miner textures, so this one needs the MineColonies jar) |
 | `gen_astronomer_skin.py` | the astronomer's coat textures and citizen icons (heads come from MineColonies' Student textures) |
+| `gen_souvenir_textures.py` | the trophies' textures (the souvenir and map icons, the placed souvenir's atlases), their models and the souvenir's blockstate; look-check previews into `tools/out/shots/` |
+| `check_trophies.py` | the trophies' resources against the code: 16x16 RGBA textures in use, models, blockstate, loot table, every lang key the code names, the approved place names - prints OK (run with `python -I` from the repository root) |
 | `preview_skin.py` | flat front/back paper-doll previews of a skin into `tools/out/` - a look-check, not a render |
 | `build_observatory.py`, `build_photobooth.py` | the fifty Observatory / Photo Booth blueprints (five looks, five levels each), from `observatory.py` and `photobooth.py`; the same gates as `build_pack.py` |
 | `access.py` | the accessibility audit of every Observatory and Photo Booth design: a citizen must reach every worked block, every floor mark and the bed, no walled-off rooms, doors with a floor on both sides, light 13+ above every lightroom - prints ALL OK |

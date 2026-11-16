@@ -2,6 +2,28 @@
 
 ## 0.4.0 (unreleased)
 
+- **Trophies from the End.** A completed expedition may bring home something to remember it by,
+  on top of the haul (the existing loot tables are untouched):
+  - **Souvenirs** (any level, 10 % per completed trip by default), named after one of sixteen
+    places in the End - "Shard from the Hollow Spires", "Sprig from Chorus Reach". The tooltip
+    tells who brought it home, which expedition of the Departure Point it was (Launchpad or End
+    Gate, colony day) and what happened ("Fought 2 endermen and a shulker", "A quiet crossing").
+  - A souvenir can be placed on a shelf, a table or any block with a firm top: a keepsake on a
+    little purpur stand, facing the player. Broken, pushed or knocked off, it drops as the same
+    souvenir with the same story and name; an anvil can rename it.
+  - The **Dragon's Wake** ("Scale from the Dragon's Wake") only and always after the Voyager beat
+    the dragon on that trip.
+  - From a level 5 Departure Point: an **End-city enchanted book** (5 %; one enchantment from the
+    configured list - never Mending by default - at a random level) and a **map of the End** (3 %),
+    a hand-drawn chart with the trip's story. It is a lore item, not a vanilla map: no map data,
+    no chunks.
+  - Trophies are packed first and come home into the hut like every other find, appear in the
+    Expedition Log and, with Long-range Comms, in one chat line. A lost or driven-back Voyager
+    brings none. The trip's story survives a reload mid-trip.
+  - Every Departure Point now counts its expeditions (an older one starts from its completed-trip
+    stat); the number is in the souvenir's story and in the departure log line.
+  - A haul stack that does not fit in the Voyager's pack is now logged instead of vanishing
+    without a word.
 - **A server config, `voyager-server.toml`.** Server owners can tune expeditions: trips per launch
   window, rations per Voyager, a supply multiplier for the expedition plans, a trip length
   multiplier, the dragon's odds on Dragon Hunt trips and whether a Voyager can be lost at all; a
@@ -23,7 +45,11 @@
 - **README:** the header no longer says BETA 0.2.0, and there is a section on the server config.
 - **Tested on a dedicated server.** A headless NeoForge 21.1.249 server with MineColonies 1.1.1420
   boots Voyager and reads its config: once seeded with a non-default value for every key, once from
-  the mod's own defaults (`tools/configcheck`).
+  the mod's own defaults (`tools/configcheck`). The trophies are checked there too
+  (`tools/trophycheck`): all sixteen souvenirs with their names and tooltips, the Dragon's Wake
+  rule, 4,000 End-city books without a single Mending, the story through saving, loading and the
+  network, and a souvenir placed, saved, broken and knocked off its shelf, keeping its story every
+  time. `tools/check_trophies.py` checks the textures, models, loot table and lang keys.
 
 ## 0.3.9 - 2026-10-06 - the photographer walks round town
 
