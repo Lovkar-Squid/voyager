@@ -9,8 +9,8 @@
     tells who brought it home, which expedition of the Departure Point it was (Launchpad or End
     Gate, colony day) and what happened ("Fought 2 endermen and a shulker", "A quiet crossing").
   - A souvenir can be placed on a shelf, a table or any block with a firm top: a keepsake on a
-    little purpur stand, facing the player. Broken, pushed or knocked off, it drops as the same
-    souvenir with the same story and name; an anvil can rename it.
+    little purpur stand. Broken, pushed or knocked off, it drops as the same souvenir with the same
+    story and name; an anvil can rename it.
   - The **Dragon's Wake** ("Scale from the Dragon's Wake") only and always after the Voyager beat
     the dragon on that trip.
   - From a level 5 Departure Point: an **End-city enchanted book** (5 %; one enchantment from the

@@ -90,9 +90,9 @@ instead of it.
   *Pebble from the Long Drop*. The tooltip tells the trip: who brought it home, which expedition
   of the Departure Point it was (from the Launchpad or the End Gate, and on which colony day) and
   what happened out there - "Fought 2 endermen and a shulker", or "A quiet crossing". Set it down
-  on a shelf, a table or any block with a firm top and it stands on a little purpur stand, facing
-  you; pick it up again and it is the same souvenir with the same story. An anvil can rename it -
-  the story stays.
+  on a shelf, a table or any block with a firm top and it stands on a little purpur stand; pick it
+  up again and it is the same souvenir with the same story. An anvil can rename it - the story
+  stays.
 - **The Dragon's Wake.** A Voyager who meets the dragon (Dragon Hunt) and lives, and brings home a
   souvenir from that trip, brings a *Scale from the Dragon's Wake* - only then, and always then.
 - **End-city books** (from a level 5 Departure Point, 1 completed trip in 20): an enchanted book
