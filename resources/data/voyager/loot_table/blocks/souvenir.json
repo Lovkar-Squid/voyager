@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [ { "condition": "minecraft:survives_explosion" } ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "functions": [
+            {
+              "function": "minecraft:copy_components",
+              "source": "block_entity",
+              "include": [ "voyager:trip_story", "minecraft:item_name", "minecraft:custom_name" ]
+            }
+          ],
+          "name": "voyager:souvenir"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "voyager:blocks/souvenir"
+}

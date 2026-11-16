@@ -1,0 +1,224 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "voyager:block/souvenir_stand",
+    "stand": "voyager:block/souvenir_stand",
+    "keepsake": "voyager:block/souvenir_keepsake"
+  },
+  "elements": [
+    {
+      "from": [
+        4,
+        0,
+        4
+      ],
+      "to": [
+        12,
+        1,
+        12
+      ],
+      "faces": {
+        "north": {
+          "texture": "#stand",
+          "uv": [
+            8,
+            0,
+            16,
+            1
+          ]
+        },
+        "south": {
+          "texture": "#stand",
+          "uv": [
+            8,
+            0,
+            16,
+            1
+          ]
+        },
+        "west": {
+          "texture": "#stand",
+          "uv": [
+            8,
+            1,
+            16,
+            2
+          ]
+        },
+        "east": {
+          "texture": "#stand",
+          "uv": [
+            8,
+            1,
+            16,
+            2
+          ]
+        },
+        "up": {
+          "texture": "#stand",
+          "uv": [
+            0,
+            0,
+            8,
+            8
+          ]
+        },
+        "down": {
+          "texture": "#stand",
+          "uv": [
+            0,
+            0,
+            8,
+            8
+          ],
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "from": [
+        4.5,
+        1,
+        4.5
+      ],
+      "to": [
+        11.5,
+        2,
+        11.5
+      ],
+      "faces": {
+        "north": {
+          "texture": "#stand",
+          "uv": [
+            8,
+            3,
+            15,
+            4
+          ]
+        },
+        "south": {
+          "texture": "#stand",
+          "uv": [
+            8,
+            3,
+            15,
+            4
+          ]
+        },
+        "west": {
+          "texture": "#stand",
+          "uv": [
+            8,
+            3,
+            15,
+            4
+          ]
+        },
+        "east": {
+          "texture": "#stand",
+          "uv": [
+            8,
+            3,
+            15,
+            4
+          ]
+        },
+        "up": {
+          "texture": "#stand",
+          "uv": [
+            0,
+            8,
+            7,
+            15
+          ]
+        }
+      }
+    },
+    {
+      "from": [
+        3,
+        2,
+        8
+      ],
+      "to": [
+        13,
+        12,
+        8
+      ],
+      "faces": {
+        "north": {
+          "texture": "#keepsake",
+          "uv": [
+            10,
+            0,
+            0,
+            10
+          ]
+        },
+        "south": {
+          "texture": "#keepsake",
+          "uv": [
+            0,
+            0,
+            10,
+            10
+          ]
+        }
+      },
+      "rotation": {
+        "origin": [
+          8,
+          2,
+          8
+        ],
+        "axis": "y",
+        "angle": 45
+      },
+      "shade": false
+    },
+    {
+      "from": [
+        8,
+        2,
+        3
+      ],
+      "to": [
+        8,
+        12,
+        13
+      ],
+      "faces": {
+        "west": {
+          "texture": "#keepsake",
+          "uv": [
+            0,
+            0,
+            10,
+            10
+          ]
+        },
+        "east": {
+          "texture": "#keepsake",
+          "uv": [
+            10,
+            0,
+            0,
+            10
+          ]
+        }
+      },
+      "rotation": {
+        "origin": [
+          8,
+          2,
+          8
+        ],
+        "axis": "y",
+        "angle": 45
+      },
+      "shade": false
+    }
+  ]
+}
