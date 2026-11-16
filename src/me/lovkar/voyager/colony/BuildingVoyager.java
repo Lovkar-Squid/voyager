@@ -5,8 +5,10 @@ import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.buildings.IBuilding;
 import com.minecolonies.api.colony.jobs.registry.JobEntry;
+import com.minecolonies.api.colony.requestsystem.token.IToken;
 import com.minecolonies.api.crafting.IRecipeStorage;
 import com.minecolonies.api.crafting.ItemStorage;
+import com.minecolonies.api.crafting.MultiOutputRecipe;
 import com.minecolonies.api.equipment.ModEquipmentTypes;
 import com.minecolonies.api.util.InventoryUtils;
 import com.minecolonies.api.util.ItemStackUtils;
@@ -17,7 +19,8 @@ import com.minecolonies.core.colony.buildings.modules.AbstractCraftingBuildingMo
 import com.minecolonies.core.colony.buildings.modules.MinimumStockModule;
 import com.ldtteam.structurize.blueprints.v1.Blueprint;
 import me.lovkar.voyager.Voyager;
-import me.lovkar.voyager.ai.EntityAIWorkVoyager;
+import me.lovkar.voyager.VoyagerConfig;
+import me.lovkar.voyager.ai.ExpeditionRules;
 import me.lovkar.voyager.fx.Effects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -37,9 +40,11 @@ import net.minecraft.util.Tuple;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.items.IItemHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -311,8 +316,9 @@ public class BuildingVoyager extends AbstractBuilding {
 
     /**
      * Expected food stock for the menu module, in stacks per menu item: a stack while the racks
-     * and the Voyager's backpack together hold fewer rations than one trip needs, nothing once
-     * they do (which also cancels the open food requests).
+     * and the Voyager's backpack together hold fewer rations than one trip needs (the server
+     * config's rations per Voyager, for every Voyager of the crew), nothing once they do (which
+     * also cancels the open food requests).
      */
     public static int rationStockWanted(final IBuilding building) {
         if (!(building instanceof BuildingVoyager voyager)) {
@@ -330,7 +336,7 @@ public class BuildingVoyager extends AbstractBuilding {
         for (final ICitizenData citizen : voyager.getAllAssignedCitizen()) {
             rations += InventoryUtils.getItemCountInItemHandler(citizen.getInventory(), onMenu);
         }
-        return rations >= EntityAIWorkVoyager.RATIONS_TO_PACK * Math.max(1, voyager.getAllAssignedCitizen().size()) ? 0 : 1;
+        return rations >= VoyagerConfig.rationsPerVoyager() * Math.max(1, voyager.getAllAssignedCitizen().size()) ? 0 : 1;
     }
 
     /** Days between launch windows: 3 at level 1-2, 2 at level 3-4, every day at level 5. */
@@ -345,14 +351,14 @@ public class BuildingVoyager extends AbstractBuilding {
     }
 
     /**
-     * One expedition per launch window per Voyager, one more with Starlight Navigation at the
-     * University, and one more again once the Observatory has printed an almanac (Launch Window).
+     * One expedition per launch window per Voyager (the server config's base), one more with
+     * Starlight Navigation at the University, and one more again once the Observatory has printed
+     * an almanac (Launch Window).
      */
     public int getMaxTripsPerPeriod() {
-        final int perVoyager = 1
-                + (int) VoyagerResearch.strength(colony, VoyagerResearch.STARLIGHT_NAVIGATION)
+        final int research = (int) VoyagerResearch.strength(colony, VoyagerResearch.STARLIGHT_NAVIGATION)
                 + (int) ObservatoryResearch.strength(colony, ObservatoryResearch.LAUNCH_WINDOW);
-        return perVoyager * Math.max(1, getAllAssignedCitizen().size());
+        return ExpeditionRules.tripsPerWindow(VoyagerConfig.tripsPerLaunchWindow(), research, getAllAssignedCitizen().size());
     }
 
     @Override
@@ -394,7 +400,11 @@ public class BuildingVoyager extends AbstractBuilding {
         return tagged != null ? tagged : getPosition();
     }
 
-    /** Keep the expedition supplies (the trip recipe's inputs) in the hut instead of shipping them off. */
+    /**
+     * Keep the expedition supplies (the trip recipe's inputs) in the hut instead of shipping them off,
+     * and in the Voyager's backpack up to a stack of each - or the whole amount, when the server's
+     * supply multiplier makes a plan ask for more than a stack.
+     */
     @Override
     public int buildingRequiresCertainAmountOfItem(final ItemStack stack, final List<ItemStorage> localAlreadyKept,
                                                    final boolean inventory, final JobEntry jobEntry) {
@@ -409,7 +419,9 @@ public class BuildingVoyager extends AbstractBuilding {
             final ItemStorage kept = new ItemStorage(stack);
             final boolean needed = recipe.getInput().contains(kept);
             final int keptCount = localAlreadyKept.stream().filter(kept::equals).mapToInt(ItemStorage::getAmount).sum();
-            if (needed && (keptCount < 64 || !inventory)) {
+            final int keepUpTo = Math.max(64,
+                    ExpeditionRules.scaledAmount(TripPlans.amountOf(recipe, kept), VoyagerConfig.supplyMultiplier()));
+            if (needed && (keptCount < keepUpTo || !inventory)) {
                 if (localAlreadyKept.contains(kept)) {
                     kept.setAmount(localAlreadyKept.remove(localAlreadyKept.indexOf(kept)).getAmount());
                 }
@@ -457,6 +469,49 @@ public class BuildingVoyager extends AbstractBuilding {
     public static class CraftingModule extends AbstractCraftingBuildingModule.Custom {
         public CraftingModule(final JobEntry jobEntry) {
             super(jobEntry);
+        }
+
+        /** The plan the hut asks supplies for: the first enabled one, with the supply multiplier applied. */
+        public @Nullable IRecipeStorage getPlan(final double multiplier) {
+            return TripPlans.scaled(getFirstRecipe(ItemStack::isEmpty), multiplier);
+        }
+
+        /**
+         * The first plan that the hut's racks and its crew's backpacks can supply right now, with the
+         * supply multiplier applied, so that the check asks for the amounts the launch will use up.
+         *
+         * <p>At a multiplier of 1.0 this is MineColonies' own {@code getFirstFulfillableRecipe},
+         * untouched. Otherwise it is the same walk over the plans (the enabled ones, a multi-output
+         * plan through its classic form, the same racks and backpacks), testing the scaled copy.</p>
+         */
+        public @Nullable IRecipeStorage getFirstFulfillablePlan(final double multiplier) {
+            if (!ExpeditionRules.scales(multiplier)) {
+                return getFirstFulfillableRecipe(ItemStackUtils::isEmpty, 1, false);
+            }
+            final List<IItemHandler> backpacks = new ArrayList<>();
+            for (final ICitizenData citizen : building.getAllAssignedCitizen()) {
+                backpacks.add(citizen.getInventory());
+            }
+            for (final IToken<?> token : recipes) {
+                if (disabledRecipes.contains(token)) {
+                    continue;
+                }
+                final IRecipeStorage storage = IColonyManager.getInstance().getRecipeManager().getRecipes().get(token);
+                if (storage == null || !(ItemStackUtils.isEmpty(storage.getPrimaryOutput())
+                        || storage.getAlternateOutputs().stream().anyMatch(ItemStackUtils::isEmpty))) {
+                    continue;
+                }
+                final IRecipeStorage plan = storage.getRecipeType() instanceof MultiOutputRecipe
+                        ? storage.getClassicForMultiOutput(ItemStackUtils::isEmpty) : storage;
+                if (plan == null) {
+                    continue;
+                }
+                final IRecipeStorage scaled = TripPlans.scaled(plan, multiplier);
+                if (scaled.canFullFillRecipe(1, Collections.emptyMap(), backpacks, building)) {
+                    return scaled;
+                }
+            }
+            return null;
         }
     }
 }

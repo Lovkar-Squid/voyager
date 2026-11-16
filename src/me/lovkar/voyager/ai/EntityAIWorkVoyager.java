@@ -33,6 +33,7 @@ import com.minecolonies.core.items.ItemAdventureToken;
 import com.minecolonies.core.util.TeleportHelper;
 import com.minecolonies.core.util.citizenutils.CitizenItemUtils;
 import me.lovkar.voyager.Voyager;
+import me.lovkar.voyager.VoyagerConfig;
 import me.lovkar.voyager.colony.BuildingVoyager;
 import me.lovkar.voyager.colony.JobVoyager;
 import me.lovkar.voyager.colony.VoyagerModules;
@@ -88,22 +89,20 @@ import java.util.stream.Collectors;
 public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, BuildingVoyager> {
 
     private static final int TICK_DELAY = 40;
-    /** Ticks away per find in the expedition roll. */
-    private static final int TICKS_PER_FIND = 400;
     /** Damage taken per fight is reduced by this much per point of the secondary skill. */
     private static final float SECONDARY_DAMAGE_REDUCTION = 0.005f;
-    public static final int RATIONS_TO_PACK = 16;
     /** launch() calls (one per TICK_DELAY) the Voyager may spend walking to the departure point: about a minute. */
     private static final int WALK_ATTEMPTS = 30;
     /** When the last step is blocked, this close still counts as "on board". */
     private static final double CLOSE_ENOUGH = 12.0;
     private static final String STAT_TRIPS = "trips_completed";
     private static final String STAT_DEATHS = "voyager_deaths";
+    /** Permanent death off: a Voyager driven back from a fight they would not have survived. */
+    private static final String STAT_RETREATS = "voyager_retreats";
     private static final String STAT_FOUND = "items_discovered";
     /** Interaction shown on the citizen when the departure point cannot be reached. */
     public static final String CHAT_UNREACHABLE = "com.voyager.chat.unreachable";
-    /** Dragon Hunt: odds per level-5 expedition of meeting the dragon, and what she hits like. */
-    private static final double DRAGON_CHANCE = 0.10;
+    /** Dragon Hunt: what the dragon hits like (the odds of meeting her are in the server config). */
     private static final float DRAGON_DAMAGE = 12.0f;
     private static final int DRAGON_XP = 250;
     /** Between fights the Voyager eats and patches up to this share of their health, at most this many rations at a time. */
@@ -244,8 +243,9 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             return foodState;
         }
 
-        // supplies for the next expedition are requested ahead of time
-        final IRecipeStorage plan = craftingModule().getFirstRecipe(ItemStack::isEmpty);
+        // supplies for the next expedition are requested ahead of time, in the amounts the server's
+        // supply multiplier asks for (at 1.0 that is the plan itself)
+        final IRecipeStorage plan = craftingModule().getPlan(VoyagerConfig.supplyMultiplier());
         boolean suppliesAvailable = true;
         if (plan != null) {
             for (final ItemStorage item : plan.getInput()) {
@@ -270,7 +270,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
 
         if (currentRecipeStorage == null) {
-            currentRecipeStorage = craftingModule().getFirstFulfillableRecipe(ItemStackUtils::isEmpty, 1, false);
+            currentRecipeStorage = craftingModule().getFirstFulfillablePlan(VoyagerConfig.supplyMultiplier());
             if (currentRecipeStorage == null) {
                 note(JobVoyager.Status.WAITING_PLAN, "no expedition plan can be fulfilled yet (supplies not in the hut?)");
                 if (building.isReadyForTrip()) {
@@ -412,10 +412,11 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         final int findCount = Math.max(1, job.getFinds().size());
         // Rapid Refit is bought at the University, Star Charts at the Observatory, and a colony
         // that has both gets both - a crossing is shorter for a better ship and for a better map.
+        // The server config's trip length multiplier scales the whole crossing, floor included.
         final double refit = Math.min(0.8,
                 VoyagerResearch.strength(job.getColony(), VoyagerResearch.RAPID_REFIT)
                         + ObservatoryResearch.strength(job.getColony(), ObservatoryResearch.STAR_CHARTS));
-        final int ticksAway = (int) Math.max(TICKS_PER_FIND, findCount * TICKS_PER_FIND * (1.0 - refit));
+        final int ticksAway = ExpeditionRules.ticksAway(findCount, refit, VoyagerConfig.tripLengthMultiplier());
         worker.getCitizenData().setJobStatus(JobStatus.WORKING);
         lastNote = "";
 
@@ -475,11 +476,11 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 extra.getCount(), extra.getHoverName().getString(), name());
     }
 
-    /** Dragon Hunt researched, a level 5 Departure Point, and a one-in-ten roll. */
+    /** Dragon Hunt researched, a level 5 Departure Point, and the server config's roll (one in ten by default). */
     private boolean dragonSighted() {
         return building.getBuildingLevel() >= 5
                 && VoyagerResearch.has(job.getColony(), VoyagerResearch.DRAGON_HUNT)
-                && worker.getRandom().nextDouble() < DRAGON_CHANCE;
+                && worker.getRandom().nextDouble() < VoyagerConfig.dragonChance();
     }
 
     /** Long-range Comms: a line in the colony chat while the Voyager is out of sight. */
@@ -992,12 +993,14 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
     }
 
+    /** Packs the server config's rations per Voyager (16 by default) from the hut before a trip. */
     private IAIState checkAndRequestRations() {
-        if (InventoryUtils.getItemCountInItemHandler(worker.getInventoryCitizen(), this::onMenu) >= RATIONS_TO_PACK) {
+        final int rationsToPack = VoyagerConfig.rationsPerVoyager();
+        if (InventoryUtils.getItemCountInItemHandler(worker.getInventoryCitizen(), this::onMenu) >= rationsToPack) {
             return getState();
         }
         if (InventoryUtils.hasBuildingEnoughElseCount(building, this::onMenu, 1) >= 1) {
-            needsCurrently = new Tuple<>(this::onMenu, RATIONS_TO_PACK);
+            needsCurrently = new Tuple<>(this::onMenu, rationsToPack);
             return AIWorkerState.GATHERING_REQUIRED_MATERIALS;
         }
         return getState();
