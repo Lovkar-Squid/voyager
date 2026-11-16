@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.4.0 (unreleased)
+
+- **A server config, `voyager-server.toml`.** Server owners can tune expeditions: trips per launch
+  window, rations per Voyager, a supply multiplier for the expedition plans, a trip length
+  multiplier, the dragon's odds on Dragon Hunt trips and whether a Voyager can be lost at all; a
+  `rewards` section holds the chances of the new trophies. Every expedition default plays exactly
+  like 0.3.9. The README lists every key with its default and range.
+  - The supply multiplier scales what the hut requests, what must be in stock before a launch and
+    what a launch uses up (rounded up, at least 1 of each). The supply list itself stays in the
+    datapack recipes `trip1..5.json`, so a datapack can still replace it.
+  - The trip length multiplier scales the whole crossing; Rapid Refit and Star Charts still shorten it.
+- **Permanent death can be turned off.** With `permanentDeath = false` the blow that would have
+  killed a Voyager is never dealt: they are driven back, come home through the normal landing with a
+  quarter of their health and their gear, but empty-handed - the rest of the itinerary and the
+  trip's finds are lost, the supplies are spent. No grave, no death on the record (a "driven back"
+  count instead), and Return to Sender has nothing to do. With Long-range Comms the colony hears
+  about it. A reload on the way home keeps the wound.
+- **The Observatory says what it needs.** Without Exposure: Space its hut item has a tooltip line:
+  the night sky needs Exposure: Space, and without it every plate comes home blank. The building
+  itself stays exactly as it was - buildable, with or without the mod.
+- **README:** the header no longer says BETA 0.2.0, and there is a section on the server config.
+- **Tested on a dedicated server.** A headless NeoForge 21.1.249 server with MineColonies 1.1.1420
+  boots Voyager and reads its config: once seeded with a non-default value for every key, once from
+  the mod's own defaults (`tools/configcheck`).
+
 ## 0.3.9 - 2026-10-06 - the photographer walks round town
 
 - **The photographer no longer photographs his own studio wall.**
