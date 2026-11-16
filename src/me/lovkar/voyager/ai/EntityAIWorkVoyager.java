@@ -52,6 +52,8 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -76,6 +78,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -162,10 +165,16 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         return AIWorkerState.START_WORKING;
     }
 
-    /** Nobody interrupts an expedition, and nobody walks off in the middle of a send-off. */
+    /**
+     * Nobody interrupts an expedition, and nobody walks off in the middle of a send-off. The
+     * expedition lasts until the Voyager is back in the hut, the walk from the landing included: a
+     * Voyager interrupted there (a driven-back one is below MineColonies' 6 hp "hurt" mark and would
+     * go looking for a healer) restarts the AI, which still finds them away - they vanished into the
+     * End again and landed a second time.
+     */
     @Override
     public boolean canBeInterrupted() {
-        return !worker.isInvisible() && !job.isCountingDown();
+        return !worker.isInvisible() && !job.isCountingDown() && !job.isAway();
     }
 
     @Override
@@ -553,7 +562,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         List<ItemStack> trophies = List.of();
         if (!job.isTrophiesRolled() && !job.isDrivenBack() && !worker.isDeadOrDying()) {
             job.setTrophiesRolled(true);
-            trophies = rollTrophies(log);
+            trophies = rollTrophies();
         }
 
         if (!job.getHaul().isEmpty()) {
@@ -561,6 +570,10 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 log.setStatus(ExpeditionLog.Status.RETURNING_HOME);
                 final List<ItemStack> packed = new ArrayList<>();
                 for (final ItemStack stack : job.getHaul()) {
+                    if (stack.isEmpty()) {
+                        // nothing to carry (a haul saved before empty rolls were left out)
+                        continue;
+                    }
                     if (InventoryUtils.addItemStackToItemHandler(worker.getItemHandlerCitizen(), stack)) {
                         worker.decreaseSaturationForContinuousAction();
                         worker.getCitizenExperienceHandler().addExperience(0.2);
@@ -573,7 +586,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 }
                 Voyager.LOGGER.info("[Voyager] {} packed the haul: {}", name(), describe(packed));
                 comms("com.voyager.comms.returning", name(), packed.stream().mapToInt(ItemStack::getCount).sum());
-                announceTrophies(trophies, packed);
+                recordTrophies(trophies, packed, log);
             }
             job.getHaul().clear();
             return getState();
@@ -588,9 +601,10 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
      * The trophies of a completed trip, with the server config's chances (see Trophies): a souvenir
      * named after a place in the End, and from a level-5 Departure Point an End-city book and a map of
      * the End. They go to the front of the haul - packed first, carried home and unloaded into the hut
-     * like every other find - and into the Expedition Log. Returns what was found (often nothing).
+     * like every other find. The Expedition Log and the log line only name them once they are packed
+     * (see recordTrophies). Returns what was found (often nothing).
      */
-    private List<ItemStack> rollTrophies(final ExpeditionLog log) {
+    private List<ItemStack> rollTrophies() {
         final Trophies.Roll roll = Trophies.decide(building.getBuildingLevel(), VoyagerConfig.souvenirChance(),
                 VoyagerConfig.endCityBookChance(), VoyagerConfig.endMapChance(), worker.getRandom());
         if (!roll.any()) {
@@ -620,23 +634,33 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             return trophies;
         }
         job.addHaulFirst(trophies);
-        log.addLoot(trophies);
-        Voyager.LOGGER.info("[Voyager] {} brings something home to remember expedition {} by: {}", name(), job.getExpedition(),
-                trophies.stream().map(t -> Trophies.describe(t).getString()).collect(Collectors.joining(", ")));
         return trophies;
     }
 
-    /** Long-range Comms: one line naming the trophies that made it into the pack. */
-    private void announceTrophies(final List<ItemStack> trophies, final List<ItemStack> packed) {
-        final List<Component> parts = new ArrayList<>();
+    /**
+     * The trophies that made it into the pack - and only those - go into the Expedition Log, the log
+     * line and, with Long-range Comms, one chat line. One that found no room stays in the End (the pack
+     * loop says so) and must not be listed as coming home.
+     */
+    private void recordTrophies(final List<ItemStack> trophies, final List<ItemStack> packed, final ExpeditionLog log) {
+        final List<ItemStack> kept = new ArrayList<>();
         for (final ItemStack trophy : trophies) {
+            // the very stacks that were rolled: packed holds them by identity
             if (packed.contains(trophy)) {
-                parts.add(Trophies.describe(trophy));
+                kept.add(trophy);
             }
         }
-        if (!parts.isEmpty()) {
-            comms(Trophies.KEY_COMMS, name(), Trophies.join(parts));
+        if (kept.isEmpty()) {
+            return;
         }
+        log.addLoot(kept);
+        Voyager.LOGGER.info("[Voyager] {} brings something home to remember expedition {} by: {}", name(), job.getExpedition(),
+                kept.stream().map(t -> Trophies.describe(t).getString()).collect(Collectors.joining(", ")));
+        final List<Component> parts = new ArrayList<>();
+        for (final ItemStack trophy : kept) {
+            parts.add(Trophies.describe(trophy));
+        }
+        comms(Trophies.KEY_COMMS, name(), Trophies.join(parts));
     }
 
     /**
@@ -671,6 +695,8 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         // permanent death off: the blow that would kill is never dealt - the Voyager turns back instead
         final boolean permanentDeath = VoyagerConfig.permanentDeath();
         boolean drivenBack = false;
+        // the blow the Voyager turned back from, as estimated (for the log)
+        float turnedFrom = 0.0f;
         int hit = 0;
         while (mobHealth > 0.0f && !worker.isDeadOrDying()) {
             worker.hurtTime = 0;
@@ -696,17 +722,26 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             }
             if (takes) {
                 // decided before hurt(), which kills on its own: afterwards it would be too late
-                if (ExpeditionRules.drivenBack(permanentDeath, worker.getHealth(), worstBlow(source, incoming))) {
+                final float worst = worstBlow(source, incoming);
+                if (ExpeditionRules.drivenBack(permanentDeath, worker.getHealth(), worst)) {
                     drivenBack = true;
+                    turnedFrom = worst;
                     break;
                 }
                 if (!worker.hurt(source, incoming)) {
-                    final float after = worker.calculateDamageAfterAbsorbs(source, incoming);
+                    final float after = afterAbsorbs(worker, source, incoming);
                     if (ExpeditionRules.drivenBack(permanentDeath, worker.getHealth(), after)) {
                         drivenBack = true;
+                        turnedFrom = after;
                         break;
                     }
                     worker.setHealth(worker.getHealth() - after);
+                    if (worker.isDeadOrDying()) {
+                        // the refused blow was fatal all the same: die the way hurt() would have let them,
+                        // so MineColonies takes the citizen off its books - set to 0 hp alone, the entity
+                        // fades and the citizen respawns later as if nothing had happened
+                        worker.die(source);
+                    }
                 }
             }
             if (hit % 2 == 0) {
@@ -722,6 +757,9 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         log.setCitizen(worker);
         logAllEquipment(log, true);
         if (drivenBack) {
+            // the numbers behind the retreat: how much health was left, and what the estimate feared
+            Voyager.LOGGER.info("[Voyager] {} turns back from a {} at {} of {} hp after {} blows: the next blow could take {} hp",
+                    name(), mobName, oneDecimal(worker.getHealth()), oneDecimal(worker.getMaxHealth()), hit, oneDecimal(turnedFrom));
             return driveBack(mobName, log);
         }
         if (worker.isDeadOrDying()) {
@@ -729,17 +767,24 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             comms("com.voyager.comms.lost", name(), mobName);
             log.setKilled();
             StatsUtil.trackStat(building, STAT_DEATHS, 1);
+            // the trip ends here, before the grave is raised: MineColonies has already taken the job off
+            // the dead citizen (so the grave's record holds none), but the job the AI still holds must
+            // not go on claiming a trip in progress - away, the rest of the itinerary, a haul, a trophy
+            // roll to come - to whatever still reads it
+            job.getFinds().clear();
+            job.getHaul().clear();
+            job.setAway(false);
+            job.setDrivenBack(false);
+            job.setTrophiesRolled(true);
             if (VoyagerResearch.has(job.getColony(), VoyagerResearch.RETURN_TO_SENDER)) {
                 returnPackToHut();
             }
             raiseGrave();
             InventoryUtils.clearItemHandler(worker.getItemHandlerCitizen());
-            job.getFinds().clear();
-            job.getHaul().clear();
             return AIWorkerState.IDLE;
         }
         final LootTable loot = world.getServer().reloadableRegistries().getLootTable(mob.getLootTable());
-        final List<ItemStack> drops = new ArrayList<>(loot.getRandomItems(getLootContext()));
+        final List<ItemStack> drops = carried(loot.getRandomItems(getLootContext()));
         drops.addAll(bonusDrops(mobType));
         job.addHaul(drops);
         job.getTally().recordWin(EntityType.getKey(mobType));
@@ -767,6 +812,42 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
         return CombatRules.getDamageAfterAbsorb(worker, incoming, source, worker.getArmorValue(),
                 (float) worker.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
+    }
+
+    /**
+     * What a blow takes once armour, Resistance and the protection enchantments have had their say,
+     * worked out without dealing it: the fallback for a blow that hurt() refused. MineColonies' own
+     * calculateDamageAfterAbsorbs goes through LivingEntity's absorb methods, and NeoForge has those
+     * note each reduction on the damage container of the hurt() in progress. Outside hurt() there is
+     * no container, so with protection-enchanted armour worn it peeks an empty stack and throws in the
+     * middle of a fight. These are the same vanilla formulas and bypass tags, without the container
+     * (and without wearing the armour down for a blow that was never dealt).
+     */
+    public static float afterAbsorbs(final LivingEntity entity, final DamageSource source, final float damage) {
+        float left = damage;
+        if (!source.is(DamageTypeTags.BYPASSES_ARMOR)) {
+            left = CombatRules.getDamageAfterAbsorb(entity, left, source, entity.getArmorValue(),
+                    (float) entity.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
+        }
+        if (source.is(DamageTypeTags.BYPASSES_EFFECTS)) {
+            return left;
+        }
+        final MobEffectInstance resistance = entity.getEffect(MobEffects.DAMAGE_RESISTANCE);
+        if (resistance != null && !source.is(DamageTypeTags.BYPASSES_RESISTANCE)) {
+            left = Math.max(left * (25 - (resistance.getAmplifier() + 1) * 5) / 25.0f, 0.0f);
+        }
+        if (left <= 0.0f) {
+            return 0.0f;
+        }
+        if (source.is(DamageTypeTags.BYPASSES_ENCHANTMENTS) || !(entity.level() instanceof ServerLevel level)) {
+            return left;
+        }
+        final float protection = EnchantmentHelper.getDamageProtection(level, entity, source);
+        return protection > 0.0f ? CombatRules.getDamageAfterMagicAbsorb(left, protection) : left;
+    }
+
+    private static String oneDecimal(final float value) {
+        return String.format(Locale.ROOT, "%.1f", value);
     }
 
     /**
@@ -814,7 +895,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
      * A driven-back Voyager stays wounded until home. The wound lives on the entity, and a citizen
      * whose entity is respawned (by the travelling manager, or by MineColonies after a reload that
      * lost it) comes back at full health: once per entity, a full-health driven-back Voyager is
-     * wounded again.
+     * wounded again. Natural regeneration still works on the way home, as for any hurt citizen.
      */
     private void keepWound() {
         if (!job.isDrivenBack() || worker.getId() == woundSeenOn) {
@@ -826,6 +907,21 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             Voyager.LOGGER.info("[Voyager] {} was respawned at full health on the way home - still wounded from the retreat ({} hp)",
                     name(), (int) worker.getHealth());
         }
+    }
+
+    /**
+     * The stacks of a loot roll that are something: a roll can hand out an empty stack (an enderman's
+     * pearl rolled as zero), which is nothing to carry, nothing for the Expedition Log - and which the
+     * pack would refuse, with a warning about a stack that never was.
+     */
+    private static List<ItemStack> carried(final List<ItemStack> rolled) {
+        final List<ItemStack> out = new ArrayList<>();
+        for (final ItemStack stack : rolled) {
+            if (!stack.isEmpty()) {
+                out.add(stack);
+            }
+        }
+        return out;
     }
 
     /** What the research adds on top of the mob's own loot table (the dragon has none of her own). */
@@ -857,11 +953,37 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
     private void raiseGrave() {
         final BlockPos at = job.getColony().getGraveManager().createCitizenGrave(world, building.getPosition(), worker.getCitizenData());
         if (at == null) {
-            Voyager.LOGGER.warn("[Voyager] No room for a grave for {} by the {}", name(), lookName());
+            // MineColonies drops the pack by the hut when it finds no spot; whatever is still worn (or
+            // left) is dropped there too rather than cleared with the pack
+            final int dropped = dropWhatIsLeft();
+            Voyager.LOGGER.warn("[Voyager] No room for a grave for {} by the {} - {} more stack(s) of what they carried dropped by the hut",
+                    name(), lookName(), dropped);
             return;
         }
         Voyager.LOGGER.info("[Voyager] A grave for {} was raised at {}", name(), at);
         MessageUtils.format("com.voyager.grave", name()).sendTo(job.getColony()).forManagers();
+    }
+
+    /** What a lost Voyager still wears or carries, dropped by the hut. Returns the number of stacks. */
+    private int dropWhatIsLeft() {
+        final BlockPos at = building.getPosition().above();
+        int stacks = 0;
+        for (final EquipmentSlot slot : new EquipmentSlot[] {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+            final ItemStack worn = worker.getInventoryCitizen().getArmorInSlot(slot);
+            if (!worn.isEmpty()) {
+                InventoryUtils.spawnItemStack(world, at.getX(), at.getY(), at.getZ(), worn.copy());
+                worker.getInventoryCitizen().forceClearArmorInSlot(slot, worn);
+                stacks++;
+            }
+        }
+        for (int slot = 0; slot < worker.getInventoryCitizen().getSlots(); slot++) {
+            final ItemStack stack = worker.getInventoryCitizen().extractItem(slot, Integer.MAX_VALUE, false);
+            if (!stack.isEmpty()) {
+                InventoryUtils.spawnItemStack(world, at.getX(), at.getY(), at.getZ(), stack);
+                stacks++;
+            }
+        }
+        return stacks;
     }
 
     /** Return to Sender: armour off, and everything in the pack goes into the hut's racks. */
@@ -908,7 +1030,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 }
             }
             final LootTable loot = world.getServer().reloadableRegistries().getLootTable(block.getLootTable());
-            final List<ItemStack> drops = loot.getRandomItems(getLootContext());
+            final List<ItemStack> drops = carried(loot.getRandomItems(getLootContext()));
             job.addHaul(drops);
             log.addLoot(drops);
             dug++;
@@ -1070,10 +1192,24 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
     }
 
+    /**
+     * What the Voyager eats out there: the food on the hut's menu - the rations that were packed - or
+     * any food when the menu is empty. A fresh list each call; the menu can change between two, and
+     * the full list of edibles stays as it was.
+     */
     private List<ItemStack> rationsList() {
-        final Set<ItemStorage> allowed = building.getModule(VoyagerModules.MENU).getMenu();
-        rations.removeIf(item -> allowed.contains(new ItemStorage(item)));
-        return rations;
+        final Set<ItemStorage> menu = building.getModule(VoyagerModules.MENU).getMenu();
+        if (menu.isEmpty()) {
+            return rations;
+        }
+        final List<ItemStack> onMenu = new ArrayList<>();
+        for (final ItemStorage item : menu) {
+            final ItemStack stack = item.getItemStack();
+            if (stack.getFoodProperties(worker) != null) {
+                onMenu.add(stack);
+            }
+        }
+        return onMenu;
     }
 
     private boolean onMenu(final ItemStack stack) {
