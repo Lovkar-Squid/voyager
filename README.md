@@ -2,9 +2,10 @@
 
 *A new MineColonies profession that explores the End.*
 
-> **BETA 0.2.0** - the whole expedition loop, both building looks, the research tree and the
-> effects have been play-tested in single-player and LAN games. Dedicated servers, the dragon
-> encounter and a few research effects have not been exercised yet. Please report bugs with your
+> **0.4.0** - the whole expedition loop, both building looks, the research tree and the effects
+> have been play-tested in single-player and LAN games since 0.2.0. This release is also tested
+> on a headless dedicated server (NeoForge 21.1.249, MineColonies 1.1.1420); the
+> [changelog](docs/CHANGELOG.md) lists what was run there. Please report bugs with your
 > `logs/latest.log` (every expedition is written there with a `[Voyager]` prefix).
 
 Voyager adds one building and one job to [MineColonies](https://www.curseforge.com/minecraft/mc-mods/minecolonies):
@@ -42,7 +43,8 @@ never grow past the outline you placed) and the pack works next to any colony st
 2. Build a Departure Point and hire a Voyager. Adaptability shapes what they find, Agility the
    odds of coming home unhurt.
 3. Stock the hut: a sword, a pickaxe, armor, rations (choose them in the Rations tab) and the
-   expedition supplies - 64 cobblestone, 4 ender pearls and 16 torches per trip.
+   expedition supplies - 64 cobblestone, 4 ender pearls and 16 torches per trip (a server can
+   scale these, see [Server config](#server-config)).
 4. Wait for a launch window: every three days at level 1-2, every two days at level 3-4, daily at
    level 5.
 5. Read the **Expedition Log** in the hut to see what happened out there.
@@ -73,6 +75,11 @@ and breathes End particles while a Voyager works there.
 Not every Voyager comes home. A Voyager lost in the End gets a grave raised by the Departure
 Point's console, so the Undertaker can bury - or resurrect - them like any other colonist.
 
+A server can turn that off (`permanentDeath = false`, see [Server config](#server-config)): then
+the blow that would have killed a Voyager is never dealt. They are driven back instead and come
+home through the normal landing with a quarter of their health, empty-handed (the supplies are
+spent, the finds are lost) but with all their gear - no grave, and nobody to mourn.
+
 ## Research
 
 **Reach for the Stars** opens its own corner of the Technology tree (all need a Departure Point):
@@ -85,7 +92,7 @@ Point's console, so the Undertaker can bury - or resurrect - them like any other
 | Buddy System | 5 | a second Voyager per Departure Point (a Launchpad's crews take turns with the rocket) |
 | Ender Harvest | 4 | every enderman beaten leaves an extra ender pearl |
 | Shulker Whisperer | 4 | every shulker beaten leaves an extra shell |
-| Dragon Hunt | 5 | level 5 Voyagers may run into the dragon (1 in 10 trips) - a dragon head and dragon's breath for the survivors |
+| Dragon Hunt | 5 | level 5 Voyagers may run into the dragon (1 in 10 trips by default) - a dragon head and dragon's breath for the survivors |
 | Long-range Comms | 4 | the Voyager reports to the colony chat while away |
 | Return to Sender | 5 | a lost Voyager's gear comes back to the hut |
 
@@ -125,7 +132,7 @@ photographer's portraits and views on the gallery wall.
 ## Requirements
 
 - Minecraft 1.21.1, NeoForge 21.1.x
-- MineColonies 1.1.1300+ (tested with 1.1.1368) and Structurize
+- MineColonies 1.1.1300+ (tested with 1.1.1368 and 1.1.1420) and Structurize
 - Optional: Exposure 1.9+ (the Photo Booth, and the Observatory's photographs), Exposure: Space
   (the sky itself), Exposure: Expanded (filters), Trade Post for MineColonies (the visitors' coins)
 
@@ -158,6 +165,31 @@ what they caught tonight, who sat for a portrait.
 Drop `voyager-<version>.jar` into your `mods` folder next to MineColonies and Structurize. The
 structure pack is inside the jar; nothing else to install. Adding the mod to an existing world is
 fine - the research appears in the University and the Departure Point in the build tool.
+
+## Server config
+
+Voyager has a server config, `voyager-server.toml`. NeoForge writes it with the defaults below the
+first time a world starts, in the `config` folder of the server (or of the game, in single-player);
+a copy in a world's `serverconfig` folder overrides it for that world. The server sends its values
+to every player who joins. The defaults of the `expeditions` section play exactly like 0.3.9.
+
+| Key | Default | Range | What it does |
+|---|---|---|---|
+| `expeditions.tripsPerLaunchWindow` | 1 | 1-10 | expeditions per launch window per Voyager; Starlight Navigation and Launch Window still add one each |
+| `expeditions.rationsPerVoyager` | 16 | 1-64 | rations each Voyager packs for a trip; the hut asks for food while it holds fewer than this per Voyager |
+| `expeditions.supplyMultiplier` | 1.0 | 0.25-4.0 | scales every supply amount of the expedition plans (rounded up, at least 1): what the hut requests, what must be in stock and what a launch uses up |
+| `expeditions.tripLengthMultiplier` | 1.0 | 0.1-10.0 | scales the time a Voyager is away; Rapid Refit and Star Charts still shorten it |
+| `expeditions.dragonChance` | 0.10 | 0-1 | chance per level-5 expedition with Dragon Hunt that the dragon is on the itinerary |
+| `expeditions.permanentDeath` | true | true / false | `false`: a blow that would kill a Voyager drives them back instead - home wounded and empty-handed, with their gear, no grave |
+| `rewards.souvenirChance` | 0.10 | 0-1 | chance per completed expedition of a souvenir from the End |
+| `rewards.endCityBookChance` | 0.05 | 0-1 | chance per completed level-5 expedition of an End-city enchanted book |
+| `rewards.endMapChance` | 0.03 | 0-1 | chance per completed level-5 expedition of a hand-drawn map of the End |
+| `rewards.bookEnchantments` | 16 ordinary enchantments | any enchantment ids | what an End-city book can carry: protection, fire_protection, blast_protection, projectile_protection, feather_falling, respiration, depth_strider, unbreaking, efficiency, fortune, silk_touch, sharpness, smite, looting, power and punch (all `minecraft:`); no Mending, no curse |
+
+The supply *list* of an expedition is not in the config: it is the datapack recipes
+`data/voyager/crafterrecipes/voyager/trip1.json` to `trip5.json` (one per building level). To change
+what a trip costs, replace those files with a datapack of your own; the multiplier then scales
+whatever they ask for.
 
 ## Building from source
 

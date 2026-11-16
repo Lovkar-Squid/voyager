@@ -40,7 +40,8 @@
   loot table).
 - Gear ladder: iron at level 1, diamond at 2, netherite at 3, anything from level 4
   (`BuildingVoyager.getMaxEquipmentLevel`). Food is requested only while racks + backpack hold
-  fewer than 16 rations per crew member (`rationStockWanted`), instead of a full stack of every menu
+  fewer than 16 rations per crew member (`rationStockWanted`; since 0.4.0 the server config's
+  `rationsPerVoyager`, 16 by default), instead of a full stack of every menu
   item. Before every fight the Voyager eats up to 3 rations (+5 hp each) back to 80% health -
   cumulative damage across a roll's fights (24 -> 4 -> 1 -> dead) was the main cause of deaths.
 - The rocket really leaves: every rocket block carries the blueprint tag `rocket`; the building stows

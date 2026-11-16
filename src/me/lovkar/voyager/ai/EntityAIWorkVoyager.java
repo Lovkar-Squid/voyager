@@ -33,6 +33,7 @@ import com.minecolonies.core.items.ItemAdventureToken;
 import com.minecolonies.core.util.TeleportHelper;
 import com.minecolonies.core.util.citizenutils.CitizenItemUtils;
 import me.lovkar.voyager.Voyager;
+import me.lovkar.voyager.VoyagerConfig;
 import me.lovkar.voyager.colony.BuildingVoyager;
 import me.lovkar.voyager.colony.JobVoyager;
 import me.lovkar.voyager.colony.VoyagerModules;
@@ -45,12 +46,15 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -88,22 +92,20 @@ import java.util.stream.Collectors;
 public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, BuildingVoyager> {
 
     private static final int TICK_DELAY = 40;
-    /** Ticks away per find in the expedition roll. */
-    private static final int TICKS_PER_FIND = 400;
     /** Damage taken per fight is reduced by this much per point of the secondary skill. */
     private static final float SECONDARY_DAMAGE_REDUCTION = 0.005f;
-    public static final int RATIONS_TO_PACK = 16;
     /** launch() calls (one per TICK_DELAY) the Voyager may spend walking to the departure point: about a minute. */
     private static final int WALK_ATTEMPTS = 30;
     /** When the last step is blocked, this close still counts as "on board". */
     private static final double CLOSE_ENOUGH = 12.0;
     private static final String STAT_TRIPS = "trips_completed";
     private static final String STAT_DEATHS = "voyager_deaths";
+    /** Permanent death off: a Voyager driven back from a fight they would not have survived. */
+    private static final String STAT_RETREATS = "voyager_retreats";
     private static final String STAT_FOUND = "items_discovered";
     /** Interaction shown on the citizen when the departure point cannot be reached. */
     public static final String CHAT_UNREACHABLE = "com.voyager.chat.unreachable";
-    /** Dragon Hunt: odds per level-5 expedition of meeting the dragon, and what she hits like. */
-    private static final double DRAGON_CHANCE = 0.10;
+    /** Dragon Hunt: what the dragon hits like (the odds of meeting her are in the server config). */
     private static final float DRAGON_DAMAGE = 12.0f;
     private static final int DRAGON_XP = 250;
     /** Between fights the Voyager eats and patches up to this share of their health, at most this many rations at a time. */
@@ -119,6 +121,8 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
     private final List<ItemStack> rations;
     private int walkAttempts = 0;
     private String lastNote = "";
+    /** Transient: the entity a driven-back Voyager's wound was last checked on (a respawn is a new entity). */
+    private int woundSeenOn = -1;
 
     public EntityAIWorkVoyager(final @NotNull JobVoyager job) {
         super(job);
@@ -244,8 +248,9 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             return foodState;
         }
 
-        // supplies for the next expedition are requested ahead of time
-        final IRecipeStorage plan = craftingModule().getFirstRecipe(ItemStack::isEmpty);
+        // supplies for the next expedition are requested ahead of time, in the amounts the server's
+        // supply multiplier asks for (at 1.0 that is the plan itself)
+        final IRecipeStorage plan = craftingModule().getPlan(VoyagerConfig.supplyMultiplier());
         boolean suppliesAvailable = true;
         if (plan != null) {
             for (final ItemStorage item : plan.getInput()) {
@@ -270,7 +275,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
 
         if (currentRecipeStorage == null) {
-            currentRecipeStorage = craftingModule().getFirstFulfillableRecipe(ItemStackUtils::isEmpty, 1, false);
+            currentRecipeStorage = craftingModule().getFirstFulfillablePlan(VoyagerConfig.supplyMultiplier());
             if (currentRecipeStorage == null) {
                 note(JobVoyager.Status.WAITING_PLAN, "no expedition plan can be fulfilled yet (supplies not in the hut?)");
                 if (building.isReadyForTrip()) {
@@ -391,6 +396,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         log.setCitizen(worker);
         building.recordTrip();
         job.setAway(true);
+        job.setDrivenBack(false);
         log.setStatus(ExpeditionLog.Status.IN_PROGRESS);
         logAllEquipment(log, false);
 
@@ -412,10 +418,11 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         final int findCount = Math.max(1, job.getFinds().size());
         // Rapid Refit is bought at the University, Star Charts at the Observatory, and a colony
         // that has both gets both - a crossing is shorter for a better ship and for a better map.
+        // The server config's trip length multiplier scales the whole crossing, floor included.
         final double refit = Math.min(0.8,
                 VoyagerResearch.strength(job.getColony(), VoyagerResearch.RAPID_REFIT)
                         + ObservatoryResearch.strength(job.getColony(), ObservatoryResearch.STAR_CHARTS));
-        final int ticksAway = (int) Math.max(TICKS_PER_FIND, findCount * TICKS_PER_FIND * (1.0 - refit));
+        final int ticksAway = ExpeditionRules.ticksAway(findCount, refit, VoyagerConfig.tripLengthMultiplier());
         worker.getCitizenData().setJobStatus(JobStatus.WORKING);
         lastNote = "";
 
@@ -475,11 +482,11 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 extra.getCount(), extra.getHoverName().getString(), name());
     }
 
-    /** Dragon Hunt researched, a level 5 Departure Point, and a one-in-ten roll. */
+    /** Dragon Hunt researched, a level 5 Departure Point, and the server config's roll (one in ten by default). */
     private boolean dragonSighted() {
         return building.getBuildingLevel() >= 5
                 && VoyagerResearch.has(job.getColony(), VoyagerResearch.DRAGON_HUNT)
-                && worker.getRandom().nextDouble() < DRAGON_CHANCE;
+                && worker.getRandom().nextDouble() < VoyagerConfig.dragonChance();
     }
 
     /** Long-range Comms: a line in the colony chat while the Voyager is out of sight. */
@@ -507,6 +514,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             // out in the End nobody sees them (a reload can bring them back visible)
             worker.setInvisible(true);
         }
+        keepWound();
         job.setStatus(JobVoyager.Status.AWAY, "out in the End");
         final ExpeditionLog log = log();
         if (!job.getFinds().isEmpty()) {
@@ -562,7 +570,10 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         return AIWorkerState.NETHER_RETURN;
     }
 
-    /** One simulated fight. Returns a state to switch to when the Voyager did not survive it, null otherwise. */
+    /**
+     * One simulated fight. Returns a state to switch to when the Voyager did not survive it (or,
+     * with permanent death off, was driven back), null otherwise.
+     */
     private IAIState fight(final ItemStack token, final ExpeditionLog log) {
         final AdventureData data = AdventureData.readFromItemStack(token);
         if (data == null) {
@@ -588,6 +599,9 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             Voyager.LOGGER.info("[Voyager] {} faces the dragon!", name());
             comms("com.voyager.comms.dragon", name());
         }
+        // permanent death off: the blow that would kill is never dealt - the Voyager turns back instead
+        final boolean permanentDeath = VoyagerConfig.permanentDeath();
+        boolean drivenBack = false;
         int hit = 0;
         while (mobHealth > 0.0f && !worker.isDeadOrDying()) {
             worker.hurtTime = 0;
@@ -611,9 +625,20 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             if (lands) {
                 mobHealth -= damage;
             }
-            if (takes && !worker.hurt(source, incoming)) {
-                final float after = worker.calculateDamageAfterAbsorbs(source, incoming);
-                worker.setHealth(worker.getHealth() - after);
+            if (takes) {
+                // decided before hurt(), which kills on its own: afterwards it would be too late
+                if (ExpeditionRules.drivenBack(permanentDeath, worker.getHealth(), worstBlow(source, incoming))) {
+                    drivenBack = true;
+                    break;
+                }
+                if (!worker.hurt(source, incoming)) {
+                    final float after = worker.calculateDamageAfterAbsorbs(source, incoming);
+                    if (ExpeditionRules.drivenBack(permanentDeath, worker.getHealth(), after)) {
+                        drivenBack = true;
+                        break;
+                    }
+                    worker.setHealth(worker.getHealth() - after);
+                }
             }
             if (hit % 2 == 0) {
                 final float healed = regenerate();
@@ -627,6 +652,9 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
         log.setCitizen(worker);
         logAllEquipment(log, true);
+        if (drivenBack) {
+            return driveBack(mobName, log);
+        }
         if (worker.isDeadOrDying()) {
             Voyager.LOGGER.warn("[Voyager] {} was lost in the End fighting a {} (after {} blows)", name(), mobName, hit);
             comms("com.voyager.comms.lost", name(), mobName);
@@ -654,6 +682,78 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         equipArmor(false);
         worker.getCitizenExperienceHandler().addExperience(CitizenItemUtils.applyMending(worker, data.xp()));
         return null;
+    }
+
+    /**
+     * The most a blow can take through hurt(), worked out without dealing it. Armour softens it the
+     * way vanilla does; what can only soften it further - MineColonies' cap on one blow against a
+     * citizen, protection enchantments, resistance, absorption - is left out, so the estimate errs on
+     * the side of turning back. Nothing is dealt or worn here; with permanent death on the answer
+     * is simply not used.
+     */
+    private float worstBlow(final DamageSource source, final float incoming) {
+        if (source.is(DamageTypeTags.BYPASSES_ARMOR)) {
+            return incoming;
+        }
+        return CombatRules.getDamageAfterAbsorb(worker, incoming, source, worker.getArmorValue(),
+                (float) worker.getAttributeValue(Attributes.ARMOR_TOUGHNESS));
+    }
+
+    /**
+     * Permanent death is off and the next blow would have killed: the Voyager is driven back. Left
+     * with a quarter of their health, they give up the rest of the itinerary and everything gathered
+     * on this trip (the supplies are spent all the same) and come home through the normal landing,
+     * gear and remaining rations still in the pack. No grave, no death on the record, no Return to
+     * Sender, and the Expedition Log is not marked killed - nobody was lost. The wound is applied to
+     * the live entity, after the travel respawn, like every blow of a fight; the job remembers the
+     * retreat so a respawn on the way home cannot heal it (see keepWound).
+     */
+    private IAIState driveBack(final String mobName, final ExpeditionLog log) {
+        worker.setHealth(ExpeditionRules.woundedHealth(worker.getMaxHealth()));
+        woundSeenOn = worker.getId();
+        worker.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+        equipArmor(false);
+        job.getFinds().clear();
+        job.getHaul().clear();
+        job.setDrivenBack(true);
+        forgetLoot(log);
+        log.setStatus(ExpeditionLog.Status.COMPLETED);
+        StatsUtil.trackStat(building, STAT_RETREATS, 1);
+        Voyager.LOGGER.info("[Voyager] {} was driven back by a {} and comes home wounded, empty-handed", name(), mobName);
+        comms("com.voyager.comms.driven_back", name(), mobName);
+        return AIWorkerState.NETHER_RETURN;
+    }
+
+    /** The log keeps the fights won and the gear, but no loot: none of it is coming home. */
+    private void forgetLoot(final ExpeditionLog log) {
+        final List<Tuple<EntityType<?>, Integer>> mobs = log.getMobs();
+        final List<ItemStack> equipment = log.getEquipment();
+        log.reset();
+        log.setCitizen(worker);
+        log.setEquipment(equipment);
+        for (final Tuple<EntityType<?>, Integer> mob : mobs) {
+            for (int i = 0; i < mob.getB(); i++) {
+                log.addMob(mob.getA());
+            }
+        }
+    }
+
+    /**
+     * A driven-back Voyager stays wounded until home. The wound lives on the entity, and a citizen
+     * whose entity is respawned (by the travelling manager, or by MineColonies after a reload that
+     * lost it) comes back at full health: once per entity, a full-health driven-back Voyager is
+     * wounded again.
+     */
+    private void keepWound() {
+        if (!job.isDrivenBack() || worker.getId() == woundSeenOn) {
+            return;
+        }
+        woundSeenOn = worker.getId();
+        if (worker.getHealth() >= worker.getMaxHealth()) {
+            worker.setHealth(ExpeditionRules.woundedHealth(worker.getMaxHealth()));
+            Voyager.LOGGER.info("[Voyager] {} was respawned at full health on the way home - still wounded from the retreat ({} hp)",
+                    name(), (int) worker.getHealth());
+        }
     }
 
     /** What the research adds on top of the mob's own loot table (the dragon has none of her own). */
@@ -777,7 +877,9 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
      * the haul.
      */
     private IAIState comeHome() {
-        job.setStatus(JobVoyager.Status.RETURNING, "back from the End - unloading the haul");
+        job.setStatus(JobVoyager.Status.RETURNING, job.isDrivenBack()
+                ? "driven back - coming home wounded, empty-handed" : "back from the End - unloading the haul");
+        keepWound();
         if (worker.isInvisible()) {
             if (job.isCountingDown()) {
                 return getState();
@@ -818,8 +920,14 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         worker.getCitizenData().setJobStatus(JobStatus.STUCK);
         job.setAway(false);
         currentRecipeStorage = null;
-        StatsUtil.trackStat(building, STAT_TRIPS, 1);
-        Voyager.LOGGER.info("[Voyager] {} is home - unloading the haul into the hut", name());
+        if (job.isDrivenBack()) {
+            // a retreat is counted as one (voyager_retreats), not as a completed trip
+            job.setDrivenBack(false);
+            Voyager.LOGGER.info("[Voyager] {} is home, wounded ({} hp) and empty-handed", name(), (int) worker.getHealth());
+        } else {
+            StatsUtil.trackStat(building, STAT_TRIPS, 1);
+            Voyager.LOGGER.info("[Voyager] {} is home - unloading the haul into the hut", name());
+        }
         return AIWorkerState.INVENTORY_FULL;
     }
 
@@ -992,12 +1100,14 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
     }
 
+    /** Packs the server config's rations per Voyager (16 by default) from the hut before a trip. */
     private IAIState checkAndRequestRations() {
-        if (InventoryUtils.getItemCountInItemHandler(worker.getInventoryCitizen(), this::onMenu) >= RATIONS_TO_PACK) {
+        final int rationsToPack = VoyagerConfig.rationsPerVoyager();
+        if (InventoryUtils.getItemCountInItemHandler(worker.getInventoryCitizen(), this::onMenu) >= rationsToPack) {
             return getState();
         }
         if (InventoryUtils.hasBuildingEnoughElseCount(building, this::onMenu, 1) >= 1) {
-            needsCurrently = new Tuple<>(this::onMenu, RATIONS_TO_PACK);
+            needsCurrently = new Tuple<>(this::onMenu, rationsToPack);
             return AIWorkerState.GATHERING_REQUIRED_MATERIALS;
         }
         return getState();
