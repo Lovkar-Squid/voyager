@@ -4,6 +4,7 @@ import com.minecolonies.api.colony.ICitizenData;
 import com.minecolonies.core.colony.jobs.AbstractJobCrafter;
 import me.lovkar.voyager.Voyager;
 import me.lovkar.voyager.ai.EntityAIWorkVoyager;
+import me.lovkar.voyager.trophy.TripTally;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -14,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 /**
@@ -27,6 +29,9 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
     private static final String TAG_FINDS = "finds";
     private static final String TAG_HAUL = "haul";
     private static final String TAG_DRIVEN_BACK = "driven_back";
+    private static final String TAG_EXPEDITION = "expedition";
+    private static final String TAG_TALLY = "trip_fights";
+    private static final String TAG_TROPHIES_ROLLED = "trophies_rolled";
 
     private boolean away = false;
     /**
@@ -39,7 +44,17 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
     /** Transient: the Voyager gave up walking to the departure point (shown as an interaction). */
     private boolean departureBlocked = false;
     private final Queue<ItemStack> finds = new LinkedList<>();
-    private final Queue<ItemStack> haul = new LinkedList<>();
+    /** A list, not just a queue: the trophies go in at the front, so they are packed first. */
+    private final LinkedList<ItemStack> haul = new LinkedList<>();
+    /** The Departure Point's number for the trip under way (0: a trip begun before 0.4.0 counted them). */
+    private int expedition = 0;
+    /** What happened on the trip so far (the fights won), for the trophies' story. Saved. */
+    private final TripTally tally = new TripTally();
+    /**
+     * The trophies of this trip were rolled (or, after a retreat, never will be). Saved with the haul
+     * they went into, so a reload can neither roll them twice nor lose the roll.
+     */
+    private boolean trophiesRolled = false;
     /** Transient: what the Voyager is up to right now, for other mods (Colonist Errands reads it). */
     private Status status = Status.IDLE;
     private String statusLine = "";
@@ -159,6 +174,38 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         haul.addAll(stacks);
     }
 
+    /** Puts these at the front of the haul: packed before everything else, while the backpack has room. */
+    public void addHaulFirst(final List<ItemStack> stacks) {
+        haul.addAll(0, stacks);
+    }
+
+    /** A new expedition sets off: its number, nothing happened yet, no trophies yet. */
+    public void startTrip(final int expedition) {
+        this.expedition = expedition;
+        tally.clear();
+        trophiesRolled = false;
+    }
+
+    public int getExpedition() {
+        return expedition;
+    }
+
+    public void setExpedition(final int expedition) {
+        this.expedition = expedition;
+    }
+
+    public TripTally getTally() {
+        return tally;
+    }
+
+    public boolean isTrophiesRolled() {
+        return trophiesRolled;
+    }
+
+    public void setTrophiesRolled(final boolean trophiesRolled) {
+        this.trophiesRolled = trophiesRolled;
+    }
+
     @Override
     public CompoundTag serializeNBT(final @NotNull HolderLookup.Provider provider) {
         final CompoundTag compound = super.serializeNBT(provider);
@@ -166,6 +213,9 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         compound.putBoolean(TAG_DRIVEN_BACK, drivenBack);
         compound.put(TAG_FINDS, writeStacks(finds, provider));
         compound.put(TAG_HAUL, writeStacks(haul, provider));
+        compound.putInt(TAG_EXPEDITION, expedition);
+        compound.put(TAG_TALLY, tally.save());
+        compound.putBoolean(TAG_TROPHIES_ROLLED, trophiesRolled);
         return compound;
     }
 
@@ -176,6 +226,9 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         drivenBack = compound.getBoolean(TAG_DRIVEN_BACK);
         readStacks(compound.getList(TAG_FINDS, Tag.TAG_COMPOUND), finds, provider);
         readStacks(compound.getList(TAG_HAUL, Tag.TAG_COMPOUND), haul, provider);
+        expedition = compound.getInt(TAG_EXPEDITION);
+        tally.load(compound.getList(TAG_TALLY, TripTally.listType()));
+        trophiesRolled = compound.getBoolean(TAG_TROPHIES_ROLLED);
     }
 
     private static ListTag writeStacks(final Queue<ItemStack> stacks, final HolderLookup.Provider provider) {

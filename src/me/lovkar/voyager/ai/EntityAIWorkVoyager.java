@@ -40,6 +40,8 @@ import me.lovkar.voyager.colony.VoyagerModules;
 import me.lovkar.voyager.colony.ObservatoryResearch;
 import me.lovkar.voyager.colony.VoyagerResearch;
 import me.lovkar.voyager.fx.Effects;
+import me.lovkar.voyager.trophy.TripStory;
+import me.lovkar.voyager.trophy.Trophies;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -98,7 +100,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
     private static final int WALK_ATTEMPTS = 30;
     /** When the last step is blocked, this close still counts as "on board". */
     private static final double CLOSE_ENOUGH = 12.0;
-    private static final String STAT_TRIPS = "trips_completed";
+    private static final String STAT_TRIPS = BuildingVoyager.STAT_TRIPS_COMPLETED;
     private static final String STAT_DEATHS = "voyager_deaths";
     /** Permanent death off: a Voyager driven back from a fight they would not have survived. */
     private static final String STAT_RETREATS = "voyager_retreats";
@@ -395,6 +397,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         log.setStatus(ExpeditionLog.Status.STARTING);
         log.setCitizen(worker);
         building.recordTrip();
+        job.startTrip(building.nextExpeditionNumber());
         job.setAway(true);
         job.setDrivenBack(false);
         log.setStatus(ExpeditionLog.Status.IN_PROGRESS);
@@ -429,8 +432,8 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         // where the (invisible) Voyager reappears when the travel time is up: a safe spot by the
         // hut - the cabin floor is gone with the rocket, and the trench under it is magma
         final BlockPos waiting = waitingSpot();
-        Voyager.LOGGER.info("[Voyager] {} departs from the {} at {}: expedition roll {} ({} finds, about {} s away)",
-                name(), lookName(), departure, describe(finds), findCount, ticksAway / 20);
+        Voyager.LOGGER.info("[Voyager] {} departs from the {} at {} on expedition {}: expedition roll {} ({} finds, about {} s away)",
+                name(), lookName(), departure, job.getExpedition(), describe(finds), findCount, ticksAway / 20);
         comms("com.voyager.comms.departed", name(), findCount);
 
         if (building.isEndGate()) {
@@ -546,6 +549,13 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             return getState();
         }
 
+        // every find lived through and still standing: the trip is a success - roll its trophies, once
+        List<ItemStack> trophies = List.of();
+        if (!job.isTrophiesRolled() && !job.isDrivenBack() && !worker.isDeadOrDying()) {
+            job.setTrophiesRolled(true);
+            trophies = rollTrophies(log);
+        }
+
         if (!job.getHaul().isEmpty()) {
             if (!worker.isDeadOrDying()) {
                 log.setStatus(ExpeditionLog.Status.RETURNING_HOME);
@@ -556,10 +566,14 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                         worker.getCitizenExperienceHandler().addExperience(0.2);
                         StatsUtil.trackStatByName(building, STAT_FOUND, stack.getHoverName(), stack.getCount());
                         packed.add(stack);
+                    } else {
+                        Voyager.LOGGER.warn("[Voyager] {} had no room in the pack for {}x {} - it stays in the End",
+                                name(), stack.getCount(), stack.getHoverName().getString());
                     }
                 }
                 Voyager.LOGGER.info("[Voyager] {} packed the haul: {}", name(), describe(packed));
                 comms("com.voyager.comms.returning", name(), packed.stream().mapToInt(ItemStack::getCount).sum());
+                announceTrophies(trophies, packed);
             }
             job.getHaul().clear();
             return getState();
@@ -568,6 +582,61 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         log.setStatus(ExpeditionLog.Status.COMPLETED);
         Voyager.LOGGER.info("[Voyager] {} finished the expedition and is heading home", name());
         return AIWorkerState.NETHER_RETURN;
+    }
+
+    /**
+     * The trophies of a completed trip, with the server config's chances (see Trophies): a souvenir
+     * named after a place in the End, and from a level-5 Departure Point an End-city book and a map of
+     * the End. They go to the front of the haul - packed first, carried home and unloaded into the hut
+     * like every other find - and into the Expedition Log. Returns what was found (often nothing).
+     */
+    private List<ItemStack> rollTrophies(final ExpeditionLog log) {
+        final Trophies.Roll roll = Trophies.decide(building.getBuildingLevel(), VoyagerConfig.souvenirChance(),
+                VoyagerConfig.endCityBookChance(), VoyagerConfig.endMapChance(), worker.getRandom());
+        if (!roll.any()) {
+            return List.of();
+        }
+        if (job.getExpedition() <= 0) {
+            // a trip that set off before 0.4.0 numbered them: it gets its number now
+            job.setExpedition(building.nextExpeditionNumber());
+        }
+        final TripStory story = new TripStory(Trophies.place(job.getTally().beatTheDragon(), worker.getRandom()).id(),
+                name(), job.getExpedition(), job.getColony().getDay(),
+                building.isEndGate() ? TripStory.LOOK_END_GATE : TripStory.LOOK_LAUNCHPAD, job.getTally().fights());
+        final List<ItemStack> trophies = new ArrayList<>();
+        if (roll.souvenir()) {
+            trophies.add(Trophies.souvenir(story));
+        }
+        if (roll.book()) {
+            final ItemStack book = Trophies.book(world.registryAccess(), worker.getRandom(), VoyagerConfig.bookEnchantments());
+            if (!book.isEmpty()) {
+                trophies.add(book);
+            }
+        }
+        if (roll.map()) {
+            trophies.add(Trophies.endMap(story));
+        }
+        if (trophies.isEmpty()) {
+            return trophies;
+        }
+        job.addHaulFirst(trophies);
+        log.addLoot(trophies);
+        Voyager.LOGGER.info("[Voyager] {} brings something home to remember expedition {} by: {}", name(), job.getExpedition(),
+                trophies.stream().map(t -> Trophies.describe(t).getString()).collect(Collectors.joining(", ")));
+        return trophies;
+    }
+
+    /** Long-range Comms: one line naming the trophies that made it into the pack. */
+    private void announceTrophies(final List<ItemStack> trophies, final List<ItemStack> packed) {
+        final List<Component> parts = new ArrayList<>();
+        for (final ItemStack trophy : trophies) {
+            if (packed.contains(trophy)) {
+                parts.add(Trophies.describe(trophy));
+            }
+        }
+        if (!parts.isEmpty()) {
+            comms(Trophies.KEY_COMMS, name(), Trophies.join(parts));
+        }
     }
 
     /**
@@ -673,6 +742,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         final List<ItemStack> drops = new ArrayList<>(loot.getRandomItems(getLootContext()));
         drops.addAll(bonusDrops(mobType));
         job.addHaul(drops);
+        job.getTally().recordWin(EntityType.getKey(mobType));
         log.addMob(mobType);
         log.addLoot(drops);
         Voyager.LOGGER.info("[Voyager] {} beat a {} in {} blows ({} -> {} hp), drops: {}", name(), mobName, hit,
@@ -716,6 +786,8 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         job.getFinds().clear();
         job.getHaul().clear();
         job.setDrivenBack(true);
+        // nothing to remember this one by: no trophies for a retreat
+        job.setTrophiesRolled(true);
         forgetLoot(log);
         log.setStatus(ExpeditionLog.Status.COMPLETED);
         StatsUtil.trackStat(building, STAT_RETREATS, 1);
