@@ -138,8 +138,8 @@ public class Voyager {
     public static final DeferredItem<Item> STAR_PLATE =
             ITEMS.register("star_plate", () -> new SkyPlate(new Item.Properties().stacksTo(16), true));
     /**
-     * A keepsake from the End on a little stand, to put on a shelf or a table. It breaks as easily as
-     * a flower pot and goes the way of one when a piston pushes it - dropping as the same souvenir.
+     * A keepsake from the End on a little stand, to put on a shelf or a table. It comes off by hand in
+     * a moment, and a piston pushing it knocks it off its stand - either way it drops as the same souvenir.
      */
     public static final DeferredBlock<SouvenirBlock> SOUVENIR = BLOCKS.register("souvenir",
             () -> new SouvenirBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE)
