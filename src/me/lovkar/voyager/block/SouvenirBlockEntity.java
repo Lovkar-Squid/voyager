@@ -7,6 +7,9 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.NotNull;
@@ -20,6 +23,9 @@ import org.jetbrains.annotations.Nullable;
  * block entity) - and to a creative pick-block. The souvenir's name and an anvil name are not ours
  * to handle: vanilla keeps every component the block entity did not take in the block entity's
  * own component map, saves it and hands it back the same way.</p>
+ *
+ * <p>Clients get the same data with the chunk (the update tag), so a creative pick-block of a placed
+ * souvenir copies the story and the name along with it.</p>
  */
 public class SouvenirBlockEntity extends BlockEntity {
 
@@ -69,6 +75,16 @@ public class SouvenirBlockEntity extends BlockEntity {
                     .resultOrPartial(error -> Voyager.LOGGER.warn("[Voyager] could not save a souvenir's story at {}: {}", worldPosition, error))
                     .ifPresent(saved -> tag.put(TAG_STORY, saved));
         }
+    }
+
+    @Override
+    public @NotNull CompoundTag getUpdateTag(final HolderLookup.@NotNull Provider registries) {
+        return saveWithoutMetadata(registries);
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
 
     @Override

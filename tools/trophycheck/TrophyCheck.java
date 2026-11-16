@@ -431,6 +431,8 @@ public class TrophyCheck {
         }
         checkEq("block entity keeps the story", souvenir.getStory(), story);
 
+        final CompoundTag update = souvenir.getUpdateTag(level.registryAccess());
+        check("clients are sent the story and the name with the chunk", update.contains("story") && update.contains("components"), update.toString());
         final CompoundTag saved = souvenir.saveWithFullMetadata(level.registryAccess());
         final BlockEntity loaded = BlockEntity.loadStatic(at, state, saved, level.registryAccess());
         check("block entity through save and load", loaded instanceof SouvenirBlockEntity s && story.equals(s.getStory()), saved.toString());
