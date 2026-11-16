@@ -72,7 +72,28 @@
   landing, haul deposited, expedition log written, comms lines, grave for a lost Voyager.
 - Buddy System (two Voyagers sharing one Departure Point), the gear ladder, rations.
 
-Not yet exercised: dedicated servers, the Dragon Hunt encounter, Return to Sender, Rapid Refit.
+## Verified in play (0.4.0, dedicated server)
+
+Headless NeoForge 21.1.249 server with MineColonies 1.1.1420, a real colony, the AI running for real
+(`tools/expedition`; research injected as effects, short trips, trophy chances at 1.0):
+
+- The full Launchpad loop: boarding, departure, the rocket stowed at lift-off and back after the
+  landing, the Voyager away out of sight and back, the haul unloaded into the hut, the trip counted,
+  Rapid Refit's shorter time, and the souvenir, End-city book and map of the End in the hut with
+  their story; the job, the building and the rocket's stash through saving and loading.
+- The Dragon Hunt encounter, won: dragon head, dragon's breath, the Dragon's Wake souvenir; rations
+  eaten between fights.
+- A lost Voyager: Return to Sender into the hut's racks, a grave by the hut, the rocket home alone.
+- Permanent death off: driven back, the entity taken away and respawned on the way home (still
+  wounded), home with the gear, empty-handed, no grave, no death.
+- Boot, the server config (seeded and default) and the trophies (`tools/rigboot`,
+  `tools/configcheck`, `tools/trophycheck`).
+
+Not yet exercised: the End Gate on a dedicated server, Buddy System on a dedicated server, the
+dragon winning a fight (a Voyager lost to the dragon herself), Return to Sender into full racks, no
+room for a grave, a real server restart mid-trip (the probe takes the entity away and round-trips
+the job and the building through NBT instead), a full pack at the trophy roll, a blow the game
+refuses to deal, Deep Field and the Observatory's Star Charts on a trip.
 
 ## Ideas for later
 
