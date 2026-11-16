@@ -36,7 +36,9 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.capabilities.Capabilities;
@@ -231,7 +233,13 @@ public class Voyager {
                 net.minecraft.server.packs.repository.Pack.Position.TOP);
     }
 
-    public Voyager(IEventBus modEventBus) {
+    /**
+     * FML hands the constructor our mod container as well as the mod bus; the container is where a
+     * config is registered in NeoForge 21.1. The server config is the world's (see VoyagerConfig):
+     * NeoForge loads it with the server and sends it to every client that joins.
+     */
+    public Voyager(IEventBus modEventBus, ModContainer container) {
+        container.registerConfig(ModConfig.Type.SERVER, VoyagerConfig.SPEC, "voyager-server.toml");
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
         BLOCK_ENTITIES.register(modEventBus);
