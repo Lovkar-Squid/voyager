@@ -76,9 +76,10 @@ Not every Voyager comes home. A Voyager lost in the End gets a grave raised by t
 Point's console, so the Undertaker can bury - or resurrect - them like any other colonist.
 
 A server can turn that off (`permanentDeath = false`, see [Server config](#server-config)): then
-the blow that would have killed a Voyager is never dealt. They are driven back instead and come
-home through the normal landing with a quarter of their health, empty-handed (the supplies are
-spent, the finds are lost) but with all their gear - no grave, and nobody to mourn.
+the blow that would have killed a Voyager is never dealt. They are driven back instead with a
+quarter of their health and come home through the normal landing (healing on the way, like any hurt
+colonist), empty-handed (the supplies are spent, the finds are lost) but with all their gear - no
+grave, and nobody to mourn.
 
 ## Trophies from the End
 
