@@ -1,0 +1,20 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="GPL-3.0-or-later"
+[[mods]]
+modId="voyagerrigboot"
+version="1.0.0"
+displayName="Voyager rig boot check"
+description="Headless test: Voyager loads on a dedicated server next to MineColonies, and its blocks, items, jobs and buildings are registered."
+[[dependencies.voyagerrigboot]]
+modId="voyager"
+type="required"
+versionRange="*"
+ordering="AFTER"
+side="SERVER"
+[[dependencies.voyagerrigboot]]
+modId="minecolonies"
+type="required"
+versionRange="*"
+ordering="AFTER"
+side="SERVER"
