@@ -1,0 +1,16 @@
+# Seeded by run-rigtest.ps1 -Name configcheck: a non-default value for every key, so the probe can
+# tell a config that was read from one that silently fell back to the mod's defaults.
+
+[expeditions]
+	tripsPerLaunchWindow = 3
+	rationsPerVoyager = 24
+	supplyMultiplier = 0.5
+	tripLengthMultiplier = 2.5
+	dragonChance = 0.75
+	permanentDeath = false
+
+[rewards]
+	souvenirChance = 0.5
+	endCityBookChance = 0.25
+	endMapChance = 0.2
+	bookEnchantments = ["minecraft:sharpness", "minecraft:unbreaking", "minecraft:silk_touch"]
