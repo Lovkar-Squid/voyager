@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "voyager:block/souvenir",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "voyager:block/souvenir",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "voyager:block/souvenir",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "voyager:block/souvenir",
+      "y": 270
+    }
+  }
+}

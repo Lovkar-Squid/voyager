@@ -24,9 +24,15 @@ import me.lovkar.voyager.colony.ObservatoryModules;
 import me.lovkar.voyager.colony.JobVoyager;
 import me.lovkar.voyager.colony.VoyagerModules;
 import me.lovkar.voyager.fx.Effects;
+import me.lovkar.voyager.block.SouvenirBlock;
+import me.lovkar.voyager.block.SouvenirBlockEntity;
+import me.lovkar.voyager.item.EndMapItem;
 import me.lovkar.voyager.item.ObservatoryHutItem;
 import me.lovkar.voyager.item.SkyPlate;
+import me.lovkar.voyager.item.SouvenirItem;
+import me.lovkar.voyager.trophy.TripStory;
 import me.lovkar.voyager.fx.VoyagerSounds;
+import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
@@ -34,7 +40,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -97,6 +107,16 @@ public class Voyager {
     public static final DeferredRegister<JobEntry> JOBS = DeferredRegister.create(CommonMinecoloniesAPIImpl.JOBS, MODID);
     public static final DeferredRegister<BuildingEntry> BUILDINGS =
             DeferredRegister.create(CommonMinecoloniesAPIImpl.BUILDINGS, MODID);
+    public static final DeferredRegister.DataComponents DATA_COMPONENTS =
+            DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, MODID);
+
+    /**
+     * The story of the expedition a trophy came from (see TripStory). Saved with the stack and sent
+     * to clients, who build the tooltip from it.
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<TripStory>> TRIP_STORY =
+            DATA_COMPONENTS.registerComponentType("trip_story",
+                    builder -> builder.persistent(TripStory.CODEC).networkSynchronized(TripStory.STREAM_CODEC));
 
     public static final DeferredBlock<BlockHutVoyager> BLOCK_HUT = BLOCKS.register(HUT_NAME, BlockHutVoyager::new);
     public static final DeferredItem<Item> ITEM_HUT =
@@ -117,6 +137,22 @@ public class Voyager {
             ITEMS.register("exposed_plate", () -> new SkyPlate(new Item.Properties().stacksTo(16), false));
     public static final DeferredItem<Item> STAR_PLATE =
             ITEMS.register("star_plate", () -> new SkyPlate(new Item.Properties().stacksTo(16), true));
+    /**
+     * A keepsake from the End on a little stand, to put on a shelf or a table. It comes off by hand in
+     * a moment, and a piston pushing it knocks it off its stand - either way it drops as the same souvenir.
+     */
+    public static final DeferredBlock<SouvenirBlock> SOUVENIR = BLOCKS.register("souvenir",
+            () -> new SouvenirBlock(BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE)
+                    .strength(0.3f).sound(SoundType.STONE).noOcclusion().pushReaction(PushReaction.DESTROY)));
+    /** One per stack: every souvenir has a story of its own. */
+    public static final DeferredItem<Item> SOUVENIR_ITEM =
+            ITEMS.register("souvenir", () -> new SouvenirItem(SOUVENIR.get(), new Item.Properties().stacksTo(1)));
+    /** A level-5 trip's hand-drawn map of the End: a lore item, not a vanilla map (see EndMapItem). */
+    public static final DeferredItem<Item> END_MAP =
+            ITEMS.register("end_map", () -> new EndMapItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SouvenirBlockEntity>> SOUVENIR_BE =
+            BLOCK_ENTITIES.register("souvenir",
+                    () -> BlockEntityType.Builder.of(SouvenirBlockEntity::new, SOUVENIR.get()).build(null));
     /** One block-entity type for both huts: the blueprints of either building carry the same id. */
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<VoyagerTileEntity>> BUILDING_BE =
             BLOCK_ENTITIES.register("colonybuilding",
@@ -245,6 +281,7 @@ public class Voyager {
         BLOCKS.register(modEventBus);
         ITEMS.register(modEventBus);
         BLOCK_ENTITIES.register(modEventBus);
+        DATA_COMPONENTS.register(modEventBus);
         JOBS.register(modEventBus);
         BUILDINGS.register(modEventBus);
         VoyagerSounds.SOUNDS.register(modEventBus);
@@ -434,6 +471,9 @@ public class Voyager {
         if (event.getTabKey().equals(HUTS_TAB)) {
             event.accept(EXPOSED_PLATE.get());
             event.accept(STAR_PLATE.get());
+            // the Voyager's trophies, for the same reason (a plain one each: the real ones carry a story)
+            event.accept(SOUVENIR_ITEM.get());
+            event.accept(END_MAP.get());
         }
     }
 }

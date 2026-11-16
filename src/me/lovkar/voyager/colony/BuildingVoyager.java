@@ -16,6 +16,7 @@ import com.minecolonies.api.util.WorldUtil;
 import com.minecolonies.api.util.constant.EquipmentLevelConstants;
 import com.minecolonies.core.colony.buildings.AbstractBuilding;
 import com.minecolonies.core.colony.buildings.modules.AbstractCraftingBuildingModule;
+import com.minecolonies.core.colony.buildings.modules.BuildingStatisticsModule;
 import com.minecolonies.core.colony.buildings.modules.MinimumStockModule;
 import com.ldtteam.structurize.blueprints.v1.Blueprint;
 import me.lovkar.voyager.Voyager;
@@ -64,7 +65,10 @@ public class BuildingVoyager extends AbstractBuilding {
     public static final String TAG_PORTAL = "portal";
     /** Vanilla's invisible light source, full strength: what makes the portal glow. */
     private static final BlockState GATE_LIGHT = Blocks.LIGHT.defaultBlockState().setValue(LightBlock.LEVEL, 15);
+    /** The stat a Voyager's homecoming adds to (the hut's statistics tab shows it). */
+    public static final String STAT_TRIPS_COMPLETED = "trips_completed";
     private static final String TAG_TRIPS = "trips";
+    private static final String TAG_EXPEDITIONS = "expeditions";
     private static final String TAG_PERIOD_DAY = "period_day";
     private static final String TAG_STASH = "rocket_stash";
     private static final int MAX_LEVEL = 5;
@@ -72,6 +76,12 @@ public class BuildingVoyager extends AbstractBuilding {
 
     private int periodDay = 0;
     private int trips = 0;
+    /**
+     * Expeditions launched from here, ever (unlike {@link #trips}, which a new launch window resets):
+     * the number a trophy's story gives its trip. -1 until known - a Departure Point from before
+     * 0.4.0 starts from its completed-trips stat (see {@link #expeditionsSoFar()}).
+     */
+    private int expeditions = -1;
     private long snapTime = 0L;
     /** Transient: the empty rocket's landing is already playing. */
     private boolean returningEmpty = false;
@@ -394,6 +404,26 @@ public class BuildingVoyager extends AbstractBuilding {
         trips++;
     }
 
+    /**
+     * How many expeditions this Departure Point has sent out. A building saved before 0.4.0 has no
+     * count yet; its completed-trips stat is the best record there is (a lost Voyager's trip was never
+     * counted there, so an old building may start a little low), and 0 without one.
+     */
+    public int expeditionsSoFar() {
+        if (expeditions < 0) {
+            final BuildingStatisticsModule stats = getModule(BuildingStatisticsModule.class);
+            expeditions = stats == null ? 0 : Math.max(0, stats.getBuildingStatisticsManager().getStatTotal(STAT_TRIPS_COMPLETED));
+        }
+        return expeditions;
+    }
+
+    /** Counts one more expedition and returns its number (the first is 1). */
+    public int nextExpeditionNumber() {
+        expeditions = expeditionsSoFar() + 1;
+        markDirty();
+        return expeditions;
+    }
+
     /** The block tagged "departure" in the blueprint, or the hut itself for an untagged build. */
     public BlockPos getDeparturePosition() {
         final BlockPos tagged = getFirstLocationFromTag(TAG_DEPARTURE);
@@ -436,6 +466,7 @@ public class BuildingVoyager extends AbstractBuilding {
     public void deserializeNBT(final @NotNull HolderLookup.Provider provider, final CompoundTag compound) {
         super.deserializeNBT(provider, compound);
         trips = compound.getInt(TAG_TRIPS);
+        expeditions = compound.contains(TAG_EXPEDITIONS) ? compound.getInt(TAG_EXPEDITIONS) : -1;
         periodDay = compound.getInt(TAG_PERIOD_DAY);
         stash.clear();
         final ListTag list = compound.getList(TAG_STASH, Tag.TAG_COMPOUND);
@@ -451,6 +482,7 @@ public class BuildingVoyager extends AbstractBuilding {
     public CompoundTag serializeNBT(final @NotNull HolderLookup.Provider provider) {
         final CompoundTag compound = super.serializeNBT(provider);
         compound.putInt(TAG_TRIPS, trips);
+        compound.putInt(TAG_EXPEDITIONS, expeditions);
         compound.putInt(TAG_PERIOD_DAY, periodDay);
         final ListTag list = new ListTag();
         for (final StashedBlock block : stash) {
