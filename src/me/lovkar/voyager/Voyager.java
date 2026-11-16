@@ -24,6 +24,7 @@ import me.lovkar.voyager.colony.ObservatoryModules;
 import me.lovkar.voyager.colony.JobVoyager;
 import me.lovkar.voyager.colony.VoyagerModules;
 import me.lovkar.voyager.fx.Effects;
+import me.lovkar.voyager.item.ObservatoryHutItem;
 import me.lovkar.voyager.item.SkyPlate;
 import me.lovkar.voyager.fx.VoyagerSounds;
 import net.minecraft.core.registries.Registries;
@@ -102,8 +103,9 @@ public class Voyager {
             ITEMS.register(HUT_NAME, () -> new ItemBlockHut(BLOCK_HUT.get(), new Item.Properties()));
     public static final DeferredBlock<BlockHutObservatory> BLOCK_HUT_OBSERVATORY =
             BLOCKS.register(OBSERVATORY_HUT_NAME, BlockHutObservatory::new);
+    /** Its own item class only for the tooltip that says what the night sky needs (see ObservatoryHutItem). */
     public static final DeferredItem<Item> ITEM_HUT_OBSERVATORY =
-            ITEMS.register(OBSERVATORY_HUT_NAME, () -> new ItemBlockHut(BLOCK_HUT_OBSERVATORY.get(), new Item.Properties()));
+            ITEMS.register(OBSERVATORY_HUT_NAME, () -> new ObservatoryHutItem(BLOCK_HUT_OBSERVATORY.get(), new Item.Properties()));
 
     public static final DeferredBlock<me.lovkar.voyager.block.BlockHutPhotoBooth> BLOCK_HUT_PHOTOBOOTH =
             BLOCKS.register(PHOTOBOOTH_HUT_NAME, me.lovkar.voyager.block.BlockHutPhotoBooth::new);

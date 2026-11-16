@@ -64,6 +64,7 @@
   "com.voyager.building.observatory": "Observatory",
   "com.minecolonies.building.observatory": "Observatory",
   "com.voyager.building.observatory.desc": "Home of the Astronomer, who works the night while the rest of the colony sleeps and brings back plates of what is up there. Build it as a Copper Dome, a Stargazer's Keep, a Sand Court, a Skyward Station or an Aperture Array - the Voyager structure pack has all five. Needs Exposure and Exposure: Space.",
+  "com.voyager.observatory.needs_space": "The night sky needs Exposure: Space - without it every plate comes home blank.",
   "com.voyager.job.astronomer": "Astronomer",
   "voyager:astronomer.job.desc": "Works nights at the Observatory: watches the sky when it is clear and comes home at dawn with a plate. The only colonist in town whose shift is the opposite of everybody else's.",
   "voyager:astronomer.skills.desc": "Knowledge decides what they can identify, Focus how long they can hold a night's watch.",
