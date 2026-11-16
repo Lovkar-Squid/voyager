@@ -43,6 +43,12 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
     private boolean countingDown = false;
     /** Transient: the Voyager gave up walking to the departure point (shown as an interaction). */
     private boolean departureBlocked = false;
+    /**
+     * Transient: this trip has turned for home (finished, or driven back). Lives on the job, not the
+     * AI, because the AI is made anew when it restarts on the way home; it only keeps the
+     * "finished the expedition" log line to one per trip.
+     */
+    private boolean homeward = false;
     private final Queue<ItemStack> finds = new LinkedList<>();
     /** A list, not just a queue: the trophies go in at the front, so they are packed first. */
     private final LinkedList<ItemStack> haul = new LinkedList<>();
@@ -158,6 +164,14 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         this.departureBlocked = departureBlocked;
     }
 
+    public boolean isHomeward() {
+        return homeward;
+    }
+
+    public void setHomeward(final boolean homeward) {
+        this.homeward = homeward;
+    }
+
     public Queue<ItemStack> getFinds() {
         return finds;
     }
@@ -179,11 +193,12 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         haul.addAll(0, stacks);
     }
 
-    /** A new expedition sets off: its number, nothing happened yet, no trophies yet. */
+    /** A new expedition sets off: its number, nothing happened yet, no trophies yet, not homeward yet. */
     public void startTrip(final int expedition) {
         this.expedition = expedition;
         tally.clear();
         trophiesRolled = false;
+        homeward = false;
     }
 
     public int getExpedition() {

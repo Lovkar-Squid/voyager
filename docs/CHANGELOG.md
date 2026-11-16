@@ -36,9 +36,11 @@
 - **Permanent death can be turned off.** With `permanentDeath = false` the blow that would have
   killed a Voyager is never dealt: they are driven back with a quarter of their health and come home
   through the normal landing with their gear, but empty-handed - the rest of the itinerary and the
-  trip's finds are lost, the supplies are spent. On the way home they heal as any hurt colonist does.
-  No grave, no death on the record (a "driven back" count instead), and Return to Sender has nothing
-  to do. With Long-range Comms the colony hears about it. A reload on the way home keeps the wound.
+  trip's finds are lost, the supplies are spent. They step out of the rocket (or the gate) with that
+  quarter, whatever they healed out of sight; on the walk to the hut they heal as any hurt colonist
+  does. No grave, no death on the record (a "driven back" count instead), and Return to Sender has
+  nothing to do. With Long-range Comms the colony hears about it. A reload on the way home keeps the
+  wound.
   The log says at how much health the Voyager turned back and how hard the next blow was feared to be.
 - **The Observatory says what it needs.** Without Exposure: Space its hut item has a tooltip line:
   the night sky needs Exposure: Space, and without it every plate comes home blank. The building
@@ -63,6 +65,8 @@
     reload, or when MineColonies' care for a colonist below 6 hp takes them over, as it does a
     driven-back Voyager. Before, the restarted AI found them still away, hid them in the End again and
     brought the rocket in to land a second time. A meal or leisure no longer interrupts that walk.
+  - "Finished the expedition and is heading home" is logged once per trip: an AI restarted on the way
+    home logged it again, and a driven-back Voyager, who finished nothing, got it too.
 - **Tested on a dedicated server.** A headless NeoForge 21.1.249 server with MineColonies 1.1.1420
   boots Voyager and reads its config: once seeded with a non-default value for every key, once from
   the mod's own defaults (`tools/configcheck`). The trophies are checked there too
@@ -91,8 +95,9 @@
   - `wounded`: a deadly trip (no rations, half health, the dragon at the end) with permanent death
     off: the Voyager turned back from a fight (a shulker in one run, the dragon in another) and was
     left with a quarter of their health, was taken out of the world on the way home and came back
-    still wounded, landed once - at that quarter, below MineColonies' 6 hp mark - and walked home
-    with all their gear, empty-handed: no grave, no death on the record, a retreat counted.
+    still wounded, landed once and stepped out at that quarter (below MineColonies' 6 hp mark,
+    whatever they had healed meanwhile), then walked home with all their gear, empty-handed: no
+    grave, no death on the record, a retreat counted.
 
 ## 0.3.9 - 2026-10-06 - the photographer walks round town
 

@@ -113,8 +113,8 @@ import java.util.regex.Pattern;
  *   <li>{@code wounded} - a deadly trip (no rations, half health, the dragon at the end) with permanent
  *       death off: driven back wounded, home with the gear, no grave, no death, empty-handed; the
  *       entity is also taken away after the retreat to prove a respawn on the way home keeps the
- *       wound, and set back to the wounded value at the landing: below MineColonies' 6 hp mark the
- *       Voyager must still walk home after one landing.</li>
+ *       wound. The Voyager must step out of the landing at the wounded value (the mod sets it, the
+ *       probe only reads it) and, below MineColonies' 6 hp mark, still walk home after one landing.</li>
  * </ul>
  *
  * <p>Research is injected as effects (the University is not part of the test). Checks fire on edges -
@@ -176,6 +176,10 @@ public class Expedition {
     private static final Pattern ATE = Pattern.compile("ate (\\d+) ration\\(s\\)");
     private static final Pattern HOME_WOUNDED = Pattern.compile("is home, wounded \\((\\d+) hp\\) and empty-handed");
     private static final Pattern REWOUNDED = Pattern.compile("was respawned at full health on the way home - still wounded from the retreat \\((\\d+) hp\\)");
+    private static final Pattern STEPS_OUT = Pattern.compile("steps out still wounded from the retreat: ([\\d.]+) of ([\\d.]+) hp");
+    private static final String FINISHED = "finished the expedition and is heading home";
+    /** MineColonies' care for a hurt colonist takes over below this (CitizenDiseaseHandler.isHurt). */
+    private static final float HURT_MARK = 6.0f;
     private static final Pattern ROCKET_ALONE = Pattern.compile("Rocket at .+ is coming back without its crew");
 
     // ---------------------------------------------------------------- state
@@ -221,6 +225,7 @@ public class Expedition {
     private Map<String, Integer> departCounts = Map.of();
     private Map<String, Integer> tallyAtRoll = null;
     private Float healthAtHomeEdge = null;
+    private Float healthAtLanding = null;
     private float maxHealthAtHome = -1f;
     private final List<Pending> pending = new ArrayList<>();
     private boolean departureLineSeen = false;
@@ -1141,13 +1146,26 @@ public class Expedition {
                 same + " of " + rocketSolid + " cells as before at t=" + tick + (wrong.isEmpty() ? "" : ", differ: " + wrong));
         expect("landing line", LANDED, 0, m -> checkEq("landing line: blocks restored", Integer.parseInt(m.group(1)), rocketSolid));
         final Optional<AbstractEntityCitizen> entity = liveEntity();
-        if (mode == Mode.WOUNDED && entity.isPresent()) {
-            // the walk home at the wounded value, below MineColonies' 6 hp "hurt" mark (as after a respawn
-            // just before the landing): its care for hurt colonists takes the Voyager over whatever the job
-            // says, and the expedition AI it hands back must not send them into the End a second time
-            landedLow = true;
-            entity.get().setHealth(ExpeditionRules.woundedHealth(entity.get().getMaxHealth()));
-            say("landed: health set to " + entity.get().getHealth() + " of " + entity.get().getMaxHealth() + " for the walk home");
+        if (mode == Mode.WOUNDED) {
+            if (entity.isEmpty()) {
+                check("landing: wounded", false, "no entity at the landing");
+                return;
+            }
+            // the mod steps a driven-back Voyager out at the wounded value, whatever they healed out of
+            // sight (after the respawn MineColonies' care for a hurt colonist may have had them first: the
+            // old code landed one at 11 of 20 hp); the probe only reads it. The same tick or the next: at
+            // most one natural healing step on top.
+            final float h = entity.get().getHealth();
+            final float wounded = ExpeditionRules.woundedHealth(entity.get().getMaxHealth());
+            healthAtLanding = h;
+            check("landing: wounded", h >= wounded - 0.01f && h <= wounded + 1.01f,
+                    h + " of " + entity.get().getMaxHealth() + " hp at t=" + tick + ", the wounded value is " + wounded);
+            // the walk home starts below MineColonies' 6 hp "hurt" mark: its care for hurt colonists takes
+            // the Voyager over whatever the job says, and the expedition AI it hands back must not send
+            // them into the End a second time
+            landedLow = h < HURT_MARK;
+            expect("landing: wounded line", STEPS_OUT, 0, m -> check("landing: wounded line",
+                    Math.abs(Float.parseFloat(m.group(1)) - wounded) < 0.01f, m.group() + " (the wounded value is " + wounded + ")"));
         }
     }
 
@@ -1223,7 +1241,9 @@ public class Expedition {
         final float wounded = ExpeditionRules.woundedHealth(max);
         healthAtHomeEdge = h;
         maxHealthAtHome = max;
-        // natural regeneration works on the way home (about 1 hp in 100 ticks), as for any hurt citizen
+        // stepped out at the wounded value (checked at the landing); on the walk from the pad to the hut
+        // natural regeneration works (about 1 hp in 100 ticks), as for any hurt colonist - held below
+        // MineColonies' 6 hp mark the Voyager would never be handed back by its care, so never get home
         check("home wounded: health", h >= wounded && h < max,
                 h + " of " + max + " hp, wounded value " + wounded + ", " + (tick - drivenBackTick) + " ticks after the retreat");
     }
@@ -1366,6 +1386,7 @@ public class Expedition {
         verifyUnloaded();
         checkEq("trips completed", stat(BuildingVoyager.STAT_TRIPS_COMPLETED), 1);
         checkEq("deaths", stat("voyager_deaths"), 0);
+        checkEq("one 'finished the expedition' line", logs.count(FINISHED), 1);
 
         final List<ItemStack> hut = hutStacks();
         final Map<String, Integer> tallyNow = tally();
@@ -1619,7 +1640,9 @@ public class Expedition {
         check("rocket back", landed && !building.isRocketAway(), "landing t=" + landingTick);
         final int landings = logs.count("rocket coming in to land at");
         check("one landing, home on foot below the hurt mark", landedLow && home && landings == 1,
-                "landed at the wounded value " + landedLow + ", home " + home + ", " + landings + " landing(s)");
+                "landed at " + healthAtLanding + " hp (below " + HURT_MARK + ": " + landedLow + "), home " + home + ", " + landings + " landing(s)");
+        // a retreat finishes no expedition, and the AI restarted on the way home must not announce one
+        checkEq("no 'finished the expedition' line for a retreat", logs.count(FINISHED), 0);
         check("still the Voyager", building.getAllAssignedCitizen().contains(citizen) && citizen.getJob() == job, "");
         final Matcher turn = logs.find(TURNS_BACK, 0);
         if (turn != null) {

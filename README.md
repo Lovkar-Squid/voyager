@@ -77,9 +77,9 @@ Point's console, so the Undertaker can bury - or resurrect - them like any other
 
 A server can turn that off (`permanentDeath = false`, see [Server config](#server-config)): then
 the blow that would have killed a Voyager is never dealt. They are driven back instead with a
-quarter of their health and come home through the normal landing (healing on the way, like any hurt
-colonist), empty-handed (the supplies are spent, the finds are lost) but with all their gear - no
-grave, and nobody to mourn.
+quarter of their health and come home through the normal landing, stepping out with that quarter
+(on the walk to the hut they heal like any hurt colonist), empty-handed (the supplies are spent, the
+finds are lost) but with all their gear - no grave, and nobody to mourn.
 
 ## Trophies from the End
 

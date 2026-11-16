@@ -85,8 +85,8 @@ Headless NeoForge 21.1.249 server with MineColonies 1.1.1420, a real colony, the
   eaten between fights.
 - A lost Voyager: Return to Sender into the hut's racks, a grave by the hut, the rocket home alone.
 - Permanent death off: driven back, the entity taken away and respawned on the way home (still
-  wounded), one landing and the walk home below MineColonies' 6 hp mark, home with the gear,
-  empty-handed, no grave, no death.
+  wounded), one landing stepping out at the wounded value and the walk home from below
+  MineColonies' 6 hp mark, home with the gear, empty-handed, no grave, no death.
 - Boot, the server config (seeded and default) and the trophies (`tools/rigboot`,
   `tools/configcheck`, `tools/trophycheck`).
 

@@ -611,7 +611,12 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
 
         log.setStatus(ExpeditionLog.Status.COMPLETED);
-        Voyager.LOGGER.info("[Voyager] {} finished the expedition and is heading home", name());
+        if (!job.isHomeward()) {
+            // once a trip: an AI restarted on the way home (a reload, MineColonies' care for a hurt
+            // colonist) comes through here again, and a retreat finished nothing
+            job.setHomeward(true);
+            Voyager.LOGGER.info("[Voyager] {} finished the expedition and is heading home", name());
+        }
         return AIWorkerState.NETHER_RETURN;
     }
 
@@ -875,7 +880,8 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
      * gear and remaining rations still in the pack. No grave, no death on the record, no Return to
      * Sender, and the Expedition Log is not marked killed - nobody was lost. The wound is applied to
      * the live entity, after the travel respawn, like every blow of a fight; the job remembers the
-     * retreat so a respawn on the way home cannot heal it (see keepWound).
+     * retreat so a respawn on the way home cannot heal it (see keepWound), and they step out of the
+     * landing at that value (see woundAtTheReturn).
      */
     private IAIState driveBack(final String mobName, final ExpeditionLog log) {
         worker.setHealth(ExpeditionRules.woundedHealth(worker.getMaxHealth()));
@@ -885,6 +891,8 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         job.getFinds().clear();
         job.getHaul().clear();
         job.setDrivenBack(true);
+        // turned for home, but no expedition finished: explore() must not announce one
+        job.setHomeward(true);
         // nothing to remember this one by: no trophies for a retreat
         job.setTrophiesRolled(true);
         forgetLoot(log);
@@ -910,10 +918,11 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
     }
 
     /**
-     * A driven-back Voyager stays wounded until home. The wound lives on the entity, and a citizen
-     * whose entity is respawned (by the travelling manager, or by MineColonies after a reload that
-     * lost it) comes back at full health: once per entity, a full-health driven-back Voyager is
-     * wounded again. Natural regeneration still works on the way home, as for any hurt citizen.
+     * A driven-back Voyager stays wounded until the landing. The wound lives on the entity, and a
+     * citizen whose entity is respawned (by the travelling manager, or by MineColonies after a reload
+     * that lost it) comes back at full health: once per entity, a full-health driven-back Voyager is
+     * wounded again. What they heal out of sight in the meantime is taken back at the landing (see
+     * woundAtTheReturn).
      */
     private void keepWound() {
         if (!job.isDrivenBack() || worker.getId() == woundSeenOn) {
@@ -925,6 +934,25 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             Voyager.LOGGER.info("[Voyager] {} was respawned at full health on the way home - still wounded from the retreat ({} hp)",
                     name(), (int) worker.getHealth());
         }
+    }
+
+    /**
+     * A driven-back Voyager steps out of the landing (or the gate) at the wounded value. Out of sight
+     * they heal like any colonist, and below MineColonies' 6 hp mark its care for a hurt colonist may
+     * have had them for a while before the landing (on the test server, after a respawn on the way
+     * home, long enough to land with 11 of 20 hp), so without this they could step out with half their
+     * health back. From the landing on they heal on the walk to the hut as any hurt colonist does: held
+     * at the wounded value, below that mark, the care would never hand them back and they would never
+     * reach the hut. Never raises the health.
+     */
+    private void woundAtTheReturn() {
+        final float wounded = ExpeditionRules.woundedHealth(worker.getMaxHealth());
+        if (worker.getHealth() > wounded) {
+            worker.setHealth(wounded);
+        }
+        woundSeenOn = worker.getId();
+        Voyager.LOGGER.info("[Voyager] {} steps out still wounded from the retreat: {} of {} hp",
+                name(), oneDecimal(worker.getHealth()), oneDecimal(worker.getMaxHealth()));
     }
 
     /**
@@ -1109,6 +1137,9 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 TeleportHelper.teleportCitizen(worker, world, departure);
                 worker.setInvisible(false);
                 Voyager.LOGGER.info("[Voyager] {} is back at the {} ({})", name(), lookName(), departure);
+                if (job.isDrivenBack()) {
+                    woundAtTheReturn();
+                }
                 comms("com.voyager.comms.landed", name(), lookName());
             };
             if (building.isEndGate()) {
