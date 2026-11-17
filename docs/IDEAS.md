@@ -87,14 +87,21 @@ Headless NeoForge 21.1.249 server with MineColonies 1.1.1420, a real colony, the
 - Permanent death off: driven back, the entity taken away and respawned on the way home (still
   wounded), one landing stepping out at the wounded value and the walk home from below
   MineColonies' 6 hp mark, home with the gear, empty-handed, no grave, no death.
+- The same retreat at a level-5 End Gate: the vortex departure, the travel, one arrival through the
+  gate stepping out at the wounded value, and the walk home from below the 6 hp mark (before the
+  fix of 17 Nov the restarted AI sent the Voyager through the gate again, for good). With the
+  Expedition Log handed to a crew mate while the Voyager was out (Buddy System, the crew mate
+  simulated), the retreat left the crew mate's entry alone.
 - Boot, the server config (seeded and default) and the trophies (`tools/rigboot`,
   `tools/configcheck`, `tools/trophycheck`).
 
-Not yet exercised: the End Gate on a dedicated server, Buddy System on a dedicated server, the
-dragon winning a fight (a Voyager lost to the dragon herself), Return to Sender into full racks, no
-room for a grave, a real server restart mid-trip (the probe takes the entity away and round-trips
-the job and the building through NBT instead), a full pack at the trophy roll, a blow the game
-refuses to deal, Deep Field and the Observatory's Star Charts on a trip.
+Not yet exercised: a completed trip through the End Gate (only the retreat ran there), Buddy System
+with two real Voyagers on a dedicated server, the dragon winning a fight (a Voyager lost to the
+dragon herself), Return to Sender into full racks, no room for a grave, a real server restart
+mid-trip (the probe takes the entity away and round-trips the job and the building through NBT
+instead), a real 0.3.9 world loaded mid-trip (the probe reads 0.3.9-shaped job tags instead), a full
+pack at the trophy roll, a blow the game refuses to deal, Deep Field and the Observatory's Star
+Charts on a trip.
 
 ## Ideas for later
 
