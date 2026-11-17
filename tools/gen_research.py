@@ -101,11 +101,12 @@ def main():
             json.dump(research, f, indent=2)
         lang[f"com.voyager.research.technology.{name}.name"] = title
         lang[f"com.voyager.research.technology.{name}.subtitle"] = subtitle
-    # chat lines for Long-range Comms
+    # chat lines for Long-range Comms; a mob comes in as its translated name (EntityAIWorkVoyager.mobName)
+    # and takes no article, the way vanilla's death messages name a killer
     lang.update({
         "com.voyager.comms.departed": "%1$s has left for the End - %2$s stops on the itinerary",
-        "com.voyager.comms.fight": "%1$s beat a %2$s out there (%3$s/%4$s hp left)",
-        "com.voyager.comms.lost": "%1$s was lost in the End fighting a %2$s",
+        "com.voyager.comms.fight": "%1$s beat %2$s out there (%3$s/%4$s hp left)",
+        "com.voyager.comms.lost": "%1$s was lost in the End fighting %2$s",
         "com.voyager.comms.dragon": "%1$s: it's the dragon! Engaging!",
         "com.voyager.comms.returning": "%1$s is heading home with %2$s items in the pack",
         "com.voyager.comms.landed": "%1$s is back at the %2$s",
