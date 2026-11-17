@@ -22,6 +22,7 @@ import com.minecolonies.api.util.InventoryUtils;
 import com.minecolonies.core.colony.buildings.modules.BuildingStatisticsModule;
 import com.minecolonies.core.colony.buildings.modules.ExpeditionLogModule;
 import com.minecolonies.core.colony.buildings.modules.WorkerBuildingModule;
+import com.minecolonies.core.colony.buildings.modules.expedition.ExpeditionLog;
 import com.minecolonies.core.research.GlobalResearchEffect;
 import me.lovkar.voyager.Voyager;
 import me.lovkar.voyager.VoyagerConfig;
@@ -51,6 +52,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -114,7 +116,13 @@ import java.util.regex.Pattern;
  *       death off: driven back wounded, home with the gear, no grave, no death, empty-handed; the
  *       entity is also taken away after the retreat to prove a respawn on the way home keeps the
  *       wound. The Voyager must step out of the landing at the wounded value (the mod sets it, the
- *       probe only reads it) and, below MineColonies' 6 hp mark, still walk home after one landing.</li>
+ *       probe only reads it) and, below MineColonies' 6 hp mark, still walk home after one landing;
+ *       the building's Expedition Log, the Voyager's own, keeps the fights won and loses the loot;</li>
+ *   <li>{@code wounded-gate} - the same retreat from a level-5 End Gate (no rocket: the gate's arrival
+ *       is the landing). The Voyager must appear at the gate exactly once and walk home from there;
+ *       an AI restarted below the 6 hp mark used to send them through the gate again, forever. While
+ *       they travel, the probe hands the Expedition Log to a crew mate who "set off later" (Buddy
+ *       System): the retreat must leave that entry alone.</li>
  * </ul>
  *
  * <p>Research is injected as effects (the University is not part of the test). Checks fire on edges -
@@ -126,7 +134,7 @@ import java.util.regex.Pattern;
 public class Expedition {
     private static final Logger LOGGER = LoggerFactory.getLogger("voyagerexpedition");
 
-    private enum Mode { LOOP, DRAGON, LOST, WOUNDED }
+    private enum Mode { LOOP, DRAGON, LOST, WOUNDED, WOUNDED_GATE }
 
     private enum Phase { BOOT, PASTE, PLAN, WAIT_DEPART, AWAY, WAIT_HOME, WAIT_UNLOAD, WAIT_LOST, ABSORB, VERIFY, DONE }
 
@@ -163,16 +171,22 @@ public class Expedition {
     private static final ResourceKey<net.minecraft.world.damagesource.DamageType> END_DAMAGE =
             ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.fromNamespaceAndPath(Voyager.MODID, "the_end"));
     private static final String TRIP5 = "voyager:recipes/voyager/trip5";
+    /** The dragon in the tally and the story (registry path); the log and the chat name her ("Ender Dragon"). */
     private static final String DRAGON = "ender_dragon";
+    /** The crew mate the wounded-gate mode hands the Expedition Log to while the Voyager travels. */
+    private static final String BUDDY = "Buddy Q. Crewmate";
 
     private static final Pattern DEPARTS = Pattern.compile(
             "departs from the (.+?) at .+ on expedition (\\d+): expedition roll (.*) \\((\\d+) finds, about (\\d+) s away\\)");
     private static final Pattern LIFTED = Pattern.compile("Rocket at .+ lifted off: (\\d+) blocks stowed");
     private static final Pattern LANDED = Pattern.compile("Rocket at .+ landed: (\\d+) blocks restored");
-    private static final Pattern BEAT = Pattern.compile("beat a (\\S+) in (\\d+) blows");
-    private static final Pattern LOST_IN_END = Pattern.compile("was lost in the End fighting a (\\S+) \\(after (\\d+) blows\\)");
-    private static final Pattern DRIVEN_BACK = Pattern.compile("was driven back by a (\\S+) and comes home wounded, empty-handed");
-    private static final Pattern TURNS_BACK = Pattern.compile("turns back from a (\\S+) at ([\\d.]+) of ([\\d.]+) hp after (\\d+) blows: the next blow could take ([\\d.]+) hp");
+    // a mob is named by its translated name ("Ender Dragon"), with no article in front
+    private static final Pattern BEAT = Pattern.compile("beat (.+?) in (\\d+) blows \\(");
+    private static final Pattern LOST_IN_END = Pattern.compile("was lost in the End fighting (.+?) \\(after (\\d+) blows\\)");
+    private static final Pattern DRIVEN_BACK = Pattern.compile("was driven back by (.+?) and comes home wounded, empty-handed");
+    private static final Pattern TURNS_BACK = Pattern.compile("turns back from (.+?) at ([\\d.]+) of ([\\d.]+) hp after (\\d+) blows: the next blow could take ([\\d.]+) hp");
+    /** One per arrival at an End Gate (EntityAIWorkVoyager.comeHome). */
+    private static final String GATE_ARRIVAL = "lights up for";
     private static final Pattern ATE = Pattern.compile("ate (\\d+) ration\\(s\\)");
     private static final Pattern HOME_WOUNDED = Pattern.compile("is home, wounded \\((\\d+) hp\\) and empty-handed");
     private static final Pattern REWOUNDED = Pattern.compile("was respawned at full health on the way home - still wounded from the retreat \\((\\d+) hp\\)");
@@ -213,7 +227,7 @@ public class Expedition {
     private final List<ItemStack> gearGiven = new ArrayList<>();
 
     // the observer: last tick's flags
-    private boolean wasAway, wasTravelling, wasRocketAway, wasDrivenBack, wasTrophiesRolled;
+    private boolean wasAway, wasTravelling, wasRocketAway, wasDrivenBack, wasTrophiesRolled, wasLandedMark;
     private int lastEntityId = -1;
     // what was seen
     private boolean sawBoarding, departed, dead, home, liftedOff, landed, sawEntityWhileTravelling, sawInvisibleAway;
@@ -229,6 +243,12 @@ public class Expedition {
     private float maxHealthAtHome = -1f;
     private final List<Pending> pending = new ArrayList<>();
     private boolean departureLineSeen = false;
+    /** The job's landed mark went up (the Voyager stepped out of the landing or the gate): how often. */
+    private int steppedOut = 0;
+    private int steppedOutTick = -1;
+    private boolean oldSavesChecked = false;
+    /** wounded-gate: the crew mate's Expedition Log entry as the probe wrote it, to compare after the retreat. */
+    private String buddyLogAtStart = null;
 
     /** A log line the probe expects: looked for on every tick until it shows up or the deadline passes. */
     private record Pending(String what, Pattern pattern, int from, int deadline, Consumer<Matcher> then) {
@@ -252,8 +272,36 @@ public class Expedition {
             case "dragon" -> Mode.DRAGON;
             case "lost" -> Mode.LOST;
             case "wounded" -> Mode.WOUNDED;
+            case "wounded-gate" -> Mode.WOUNDED_GATE;
             default -> null;
         };
+    }
+
+    /** Permanent death off: the retreat modes, at either look. */
+    private boolean wounded() {
+        return mode == Mode.WOUNDED || mode == Mode.WOUNDED_GATE;
+    }
+
+    /** The mode runs at a level-5 End Gate instead of the Launchpad. */
+    private boolean gate() {
+        return mode == Mode.WOUNDED_GATE;
+    }
+
+    private String lookName() {
+        return gate() ? "End Gate" : "Launchpad";
+    }
+
+    /**
+     * A mob as Voyager's log and chat lines must name it: the server's translation of its name, worked out
+     * here from vanilla, not through the mod's helper, so a helper that went back to the raw id fails.
+     */
+    private static String named(final EntityType<?> type) {
+        return type.getDescription().getString();
+    }
+
+    /** The mobs an End trip can meet, by the name the log gives them. */
+    private static Set<String> endMobNames() {
+        return Set.of(named(EntityType.ENDERMAN), named(EntityType.ENDERMITE), named(EntityType.SHULKER), named(EntityType.ENDER_DRAGON));
     }
 
     // ---------------------------------------------------------------- output
@@ -364,7 +412,7 @@ public class Expedition {
         if (phase == Phase.BOOT) {
             server = srv;
             if (mode == null) {
-                check("mode", false, "probe-mode.txt says '" + modeWord + "', want loop, dragon, lost or wounded");
+                check("mode", false, "probe-mode.txt says '" + modeWord + "', want loop, dragon, lost, wounded or wounded-gate");
                 finish();
                 return;
             }
@@ -473,8 +521,9 @@ public class Expedition {
         colony.getPackageManager().getCloseSubscribers().add(owner);
         gravesBefore.addAll(colony.getGraveManager().getGraves().keySet());
 
-        blueprint = StructurePacks.getBlueprint("Voyager", "expedition/launchpad5.blueprint", level.registryAccess());
-        check("blueprint", blueprint != null, "Voyager pack, expedition/launchpad5.blueprint");
+        final String blueprintPath = gate() ? "expedition/endgate5.blueprint" : "expedition/launchpad5.blueprint";
+        blueprint = StructurePacks.getBlueprint("Voyager", blueprintPath, level.registryAccess());
+        check("blueprint", blueprint != null, "Voyager pack, " + blueprintPath);
         if (blueprint == null) {
             finish();
             return;
@@ -487,7 +536,7 @@ public class Expedition {
         }
         final CreativeStructureHandler handler = new CreativeStructureHandler(level, padPos, blueprint, RotationMirror.NONE, true);
         Manager.addToQueue(new PlaceStructureOperation(new StructurePlacer(handler), owner));
-        say("placing the level-5 Launchpad at " + padPos.toShortString());
+        say("placing the level-5 " + lookName() + " at " + padPos.toShortString());
         enter(Phase.PASTE);
     }
 
@@ -513,17 +562,25 @@ public class Expedition {
         }
         building = bv;
         final List<BlockPos> departure = building.getLocationsFromTag(BuildingVoyager.TAG_DEPARTURE);
-        check("launchpad look", !building.isEndGate(), "schematic " + building.getSchematicName() + ", departure tag at " + departure);
-        check("departure tag", !departure.isEmpty(), "departure position " + building.getDeparturePosition().toShortString());
-        for (final BlockPos pos : building.getLocationsFromTag(BuildingVoyager.TAG_ROCKET)) {
-            final BlockState state = level.getBlockState(pos);
-            if (!state.isAir()) {
-                rocketCells.put(pos.immutable(), state);
-            }
+        if (gate()) {
+            check("end gate look", building.isEndGate() && !building.getLocationsFromTag(BuildingVoyager.TAG_GATE).isEmpty(),
+                    "schematic " + building.getSchematicName() + ", ring centre " + building.getLocationsFromTag(BuildingVoyager.TAG_GATE)
+                            + ", departure tag at " + departure);
+        } else {
+            check("launchpad look", !building.isEndGate(), "schematic " + building.getSchematicName() + ", departure tag at " + departure);
         }
-        rocketSolid = rocketCells.size();
-        check("rocket", rocketSolid > 0, rocketSolid + " non-air rocket-tagged cells of "
-                + building.getLocationsFromTag(BuildingVoyager.TAG_ROCKET).size());
+        check("departure tag", !departure.isEmpty(), "departure position " + building.getDeparturePosition().toShortString());
+        if (!gate()) {
+            for (final BlockPos pos : building.getLocationsFromTag(BuildingVoyager.TAG_ROCKET)) {
+                final BlockState state = level.getBlockState(pos);
+                if (!state.isAir()) {
+                    rocketCells.put(pos.immutable(), state);
+                }
+            }
+            rocketSolid = rocketCells.size();
+            check("rocket", rocketSolid > 0, rocketSolid + " non-air rocket-tagged cells of "
+                    + building.getLocationsFromTag(BuildingVoyager.TAG_ROCKET).size());
+        }
 
         for (final Map.Entry<ResourceLocation, Double> effect : research().entrySet()) {
             final double s = effect.getValue();
@@ -616,7 +673,7 @@ public class Expedition {
                 VoyagerConfig.souvenirChance(), VoyagerConfig.endCityBookChance(), VoyagerConfig.endMapChance(),
                 VoyagerConfig.bookEnchantments().size());
         final String want = String.format(Locale.ROOT, "trips %d rations %d supply %.2f length %.2f dragon %.2f death %s souvenir %.2f book %.2f map %.2f books %d",
-                SEED_TRIPS, SEED_RATIONS, SEED_SUPPLY, SEED_LENGTH, mode == Mode.LOOP ? 0.0 : 1.0, mode != Mode.WOUNDED,
+                SEED_TRIPS, SEED_RATIONS, SEED_SUPPLY, SEED_LENGTH, mode == Mode.LOOP ? 0.0 : 1.0, !wounded(),
                 SEED_TROPHY_CHANCE, SEED_TROPHY_CHANCE, SEED_TROPHY_CHANCE, VoyagerConfig.DEFAULT_BOOK_ENCHANTMENTS.size());
         check("config", got.equals(want) && VoyagerConfig.bookEnchantments().equals(VoyagerConfig.DEFAULT_BOOK_ENCHANTMENTS),
                 "got " + got + "; want " + want + " (the default book list)");
@@ -635,7 +692,7 @@ public class Expedition {
                 r.put(VoyagerResearch.RETURN_TO_SENDER, 1.0);
                 r.put(VoyagerResearch.VOID_INSURANCE, 0.5);
             }
-            case LOST, WOUNDED -> {
+            case LOST, WOUNDED, WOUNDED_GATE -> {
                 r.put(VoyagerResearch.DRAGON_HUNT, 1.0);
                 r.put(VoyagerResearch.RETURN_TO_SENDER, 1.0);
             }
@@ -666,7 +723,7 @@ public class Expedition {
                     out.add(stack);
                 }
             }
-            case LOST, WOUNDED -> {
+            case LOST, WOUNDED, WOUNDED_GATE -> {
                 out.add(new ItemStack(Items.DIAMOND_SWORD));
                 out.add(new ItemStack(Items.DIAMOND_PICKAXE));
                 out.add(new ItemStack(Items.IRON_HELMET));
@@ -829,6 +886,7 @@ public class Expedition {
         final boolean rocketAway = building.isRocketAway();
         final boolean drivenBack = job.isDrivenBack();
         final boolean trophiesRolled = job.isTrophiesRolled();
+        final boolean landedMark = job.isLanded();
 
         if (job.getStatus() == JobVoyager.Status.BOARDING) {
             sawBoarding = true;
@@ -860,6 +918,9 @@ public class Expedition {
         if (!rocketAway && wasRocketAway) {
             onLanding();
         }
+        if (landedMark && !wasLandedMark) {
+            onSteppedOut(entity);
+        }
         if (trophiesRolled && !wasTrophiesRolled && away && !drivenBack && alive) {
             onTrophiesRolled();
         }
@@ -883,6 +944,7 @@ public class Expedition {
         wasRocketAway = rocketAway;
         wasDrivenBack = drivenBack;
         wasTrophiesRolled = trophiesRolled;
+        wasLandedMark = landedMark;
         if (present) {
             lastEntityId = entityId;
         }
@@ -909,6 +971,9 @@ public class Expedition {
                 }
             }
             case WAIT_HOME -> {
+                if (secondGateArrival()) {
+                    return;
+                }
                 if (dead) {
                     enter(Phase.WAIT_LOST);
                 } else if (home) {
@@ -918,7 +983,10 @@ public class Expedition {
                 }
             }
             case WAIT_UNLOAD -> {
-                if (tick - phaseStart >= 100 && (mode == Mode.WOUNDED ? tick - phaseStart >= 200 : nothingLeftToUnload())) {
+                if (secondGateArrival()) {
+                    return;
+                }
+                if (tick - phaseStart >= 100 && (wounded() ? tick - phaseStart >= 200 : nothingLeftToUnload())) {
                     enter(mode == Mode.LOOP ? Phase.ABSORB : Phase.VERIFY);
                 } else {
                     overBudget(BUDGET_UNLOAD);
@@ -934,6 +1002,23 @@ public class Expedition {
             default -> {
             }
         }
+    }
+
+    /**
+     * wounded-gate: a second arrival at the gate is the bug this mode is for (an AI restarted below the
+     * 6 hp mark sent the Voyager through the gate again, and again): fail at once rather than at the budget.
+     */
+    private boolean secondGateArrival() {
+        if (!gate()) {
+            return false;
+        }
+        final int arrivals = logs.count(GATE_ARRIVAL);
+        if (arrivals <= 1) {
+            return false;
+        }
+        check("one gate arrival", false, arrivals + " arrivals at the gate by t=" + tick + ": " + diagnosis());
+        finish();
+        return true;
     }
 
     /** The ids the hut keeps in a Voyager's pack on purpose: the plan's supplies (see BuildingVoyager). */
@@ -991,7 +1076,7 @@ public class Expedition {
         checkEq("expedition number on the job", expeditionAtDepart, 1);
         checkEq("expeditions so far on the building", soFarAtDepart, 1);
         logs.poll();
-        expect("boarding line", Pattern.compile(Pattern.quote("all set - heading for the Launchpad")), 0, m -> check("boarding line", true, m.group()));
+        expect("boarding line", Pattern.compile(Pattern.quote("all set - heading for the " + lookName())), 0, m -> check("boarding line", true, m.group()));
         expect("departure line", DEPARTS, 0, this::onDepartureLine);
     }
 
@@ -1002,7 +1087,7 @@ public class Expedition {
         final String roll = m.group(3);
         final int finds = Integer.parseInt(m.group(4));
         final int seconds = Integer.parseInt(m.group(5));
-        checkEq("departure line: look", look, "Launchpad");
+        checkEq("departure line: look", look, lookName());
         checkEq("departure line: expedition", expedition, 1);
         checkEq("departure line: finds match the itinerary", finds, Math.max(1, findsAtDepart));
         final double refit = VoyagerResearch.strength(colony, VoyagerResearch.RAPID_REFIT);
@@ -1016,7 +1101,7 @@ public class Expedition {
                             seconds + " s with Rapid Refit " + RAPID_REFIT + ", formula " + want + " s, " + without + " s without it");
         }
         if (mode != Mode.LOOP) {
-            check("dragon on the itinerary", roll.contains("fight vs " + DRAGON), "expedition roll: " + roll);
+            check("dragon on the itinerary", roll.contains("fight vs " + named(EntityType.ENDER_DRAGON)), "expedition roll: " + roll);
         }
     }
 
@@ -1046,7 +1131,7 @@ public class Expedition {
             final boolean clean = packStacks().stream().noneMatch(s -> s.getItem() instanceof SwordItem || s.getItem() instanceof ArmorItem
                     || s.getFoodProperties(null) != null);
             check("stripped before the respawn", clean && gold, "removed " + removed + ", pack now " + left);
-        } else if (mode == Mode.WOUNDED) {
+        } else if (wounded()) {
             // deadly enough with the gear still on: no rations, and half health once back in the world.
             // (With rations a Voyager in iron armour patches up between fights and beats even the dragon.)
             final InventoryCitizen inv = citizen.getInventory();
@@ -1060,6 +1145,9 @@ public class Expedition {
             }
             final boolean clean = packStacks().stream().noneMatch(st -> st.getFoodProperties(null) != null);
             check("rations taken before the respawn", clean, food + " ration(s) taken, the gear stays: " + counts(packStacks()));
+            if (gate()) {
+                handLogToBuddy();
+            }
         } else if (mode == Mode.DRAGON) {
             final boolean gold = InventoryUtils.addItemStackToItemHandler(citizen.getInventory(), new ItemStack(Items.GOLD_INGOT, GOLD));
             check("gold marker", gold, GOLD + " gold ingots in the pack while travelling");
@@ -1083,7 +1171,7 @@ public class Expedition {
                 + ", " + entity.getHealth() + "/" + entity.getMaxHealth() + " hp, away " + job.isAway());
         if (departed && travelEnded && travelEntityId < 0 && job.isAway()) {
             travelEntityId = entity.getId();
-            if ((mode == Mode.WOUNDED || mode == Mode.DRAGON) && !healthSetAfterTravel) {
+            if ((wounded() || mode == Mode.DRAGON) && !healthSetAfterTravel) {
                 // half health before the first fight: in the dragon mode the rations have to be eaten to
                 // patch up; in the wounded mode there are none left, which makes the trip a deadly one
                 healthSetAfterTravel = true;
@@ -1177,7 +1265,12 @@ public class Expedition {
             beaten.merge(m.group(1), 1, Integer::sum);
         }
         tallyAtRoll = tally();
-        checkEq("tally matches the fights in the log", tallyAtRoll, beaten);
+        // the log names a mob as the chat does (its translated name), the tally keeps its id
+        final Map<String, Integer> tallied = new TreeMap<>();
+        for (final TripStory.Fight fight : job.getTally().fights()) {
+            tallied.put(named(BuiltInRegistries.ENTITY_TYPE.get(fight.mob())), fight.count());
+        }
+        checkEq("tally matches the fights in the log", tallied, beaten);
         jobRoundTrip("away");
         say("trophies rolled at t=" + tick + "; the trip is a success, tally " + tallyAtRoll);
     }
@@ -1198,20 +1291,155 @@ public class Expedition {
         final JobVoyager copy = new JobVoyager(null);
         copy.deserializeNBT(provider, tag);
         final String got = copy.isAway() + "/" + copy.isDrivenBack() + "/" + copy.getExpedition() + "/" + copy.getTally().save()
-                + "/" + copy.isTrophiesRolled() + "/" + copy.getFinds().size() + "/" + copy.getHaul().size();
+                + "/" + copy.isTrophiesRolled() + "/" + copy.getFinds().size() + "/" + copy.getHaul().size()
+                + "/" + copy.isHomeward() + "/" + copy.isLanded();
         final String want = job.isAway() + "/" + job.isDrivenBack() + "/" + job.getExpedition() + "/" + job.getTally().save()
-                + "/" + job.isTrophiesRolled() + "/" + job.getFinds().size() + "/" + job.getHaul().size();
-        check("job NBT round trip (" + when + ")", got.equals(want), "away/drivenBack/expedition/tally/trophiesRolled/finds/haul " + got);
+                + "/" + job.isTrophiesRolled() + "/" + job.getFinds().size() + "/" + job.getHaul().size()
+                + "/" + job.isHomeward() + "/" + job.isLanded();
+        check("job NBT round trip (" + when + ")", got.equals(want),
+                "away/drivenBack/expedition/tally/trophiesRolled/finds/haul/homeward/landed " + got + (got.equals(want) ? "" : ", want " + want));
+        if (!oldSavesChecked) {
+            oldSavesChecked = true;
+            oldSaves(tag);
+        }
+    }
+
+    /**
+     * Saves from before 0.4.0, made from the live job's tag (it carries the request-system token a job
+     * without a citizen needs). A 0.3.9 trip saved after its last find has no tally to tell its story: it
+     * must read as rolled (no trophy with a false story). A 0.4.0 save of the same moment (a tally,
+     * empty: no fight won) and a 0.3.9 save with finds still ahead keep their roll to come. The keys
+     * 0.4.0 added read as "not yet": not homeward, not landed.
+     */
+    private void oldSaves(final CompoundTag live) {
+        final HolderLookup.Provider provider = level.registryAccess();
+        final CompoundTag old = live.copy();
+        for (final String key : List.of("trip_fights", "trophies_rolled", "expedition", "homeward", "landed", "driven_back")) {
+            old.remove(key);
+        }
+        old.putBoolean("away", true);
+        old.put("finds", new ListTag());
+        final CompoundTag current = old.copy();
+        current.put("trip_fights", new ListTag());
+        current.putBoolean("trophies_rolled", false);
+        final CompoundTag ahead = old.copy();
+        final ListTag finds = new ListTag();
+        finds.add(new ItemStack(Items.END_STONE, 4).save(provider));
+        ahead.put("finds", finds);
+        final JobVoyager past = readJob(old);
+        final JobVoyager now = readJob(current);
+        final JobVoyager before = readJob(ahead);
+        check("0.3.9 save after the last find: no trophy roll", past.isTrophiesRolled() && !past.isHomeward() && !past.isLanded(),
+                "trophies rolled " + past.isTrophiesRolled() + ", homeward " + past.isHomeward() + ", landed " + past.isLanded());
+        check("0.4.0 save after the last find, no fight won: the roll still to come", !now.isTrophiesRolled(),
+                "trophies rolled " + now.isTrophiesRolled());
+        check("0.3.9 save with finds ahead: the roll still to come", !before.isTrophiesRolled() && before.getFinds().size() == 1,
+                "trophies rolled " + before.isTrophiesRolled() + ", finds " + before.getFinds().size());
+    }
+
+    private JobVoyager readJob(final CompoundTag tag) {
+        final JobVoyager copy = new JobVoyager(null);
+        copy.deserializeNBT(level.registryAccess(), tag);
+        return copy;
+    }
+
+    private ExpeditionLog expeditionLog() {
+        return building.getFirstModuleOccurance(ExpeditionLogModule.class).getLog();
+    }
+
+    private static Map<String, Integer> logMobs(final ExpeditionLog log) {
+        final Map<String, Integer> mobs = new TreeMap<>();
+        for (final com.minecolonies.api.util.Tuple<EntityType<?>, Integer> mob : log.getMobs()) {
+            mobs.put(EntityType.getKey(mob.getA()).getPath(), mob.getB());
+        }
+        return mobs;
+    }
+
+    /** An Expedition Log entry in one line: whose, how far, the fights, the loot, the gear. */
+    private static String describeLog(final ExpeditionLog log) {
+        return log.getName() + "/" + log.getStatus() + "/" + logMobs(log) + "/loot " + log.getLoot().size() + "/gear " + log.getEquipment().size();
+    }
+
+    /**
+     * Buddy System without a second Voyager: while this one travels, the Departure Point's Expedition Log
+     * goes to a crew mate who "set off later" - as launch() hands it to whoever sets off - with a fight of
+     * their own and their trip under way. A Voyager driven back must leave that entry as it found it.
+     * (Reset first: MineColonies' log reads a tag into its gear list, which is immutable once written.)
+     */
+    private void handLogToBuddy() {
+        final ExpeditionLog log = expeditionLog();
+        final CompoundTag tag = new CompoundTag();
+        tag.putString("status", ExpeditionLog.Status.IN_PROGRESS.name());
+        tag.putString("name", BUDDY);
+        final ListTag mobs = new ListTag();
+        final CompoundTag mob = new CompoundTag();
+        mob.putString("type", "minecraft:endermite");
+        mob.putInt("count", 1);
+        mobs.add(mob);
+        tag.put("mobs", mobs);
+        log.reset();
+        log.deserializeNBT(level.registryAccess(), tag);
+        buddyLogAtStart = describeLog(log);
+        check("expedition log handed to a crew mate", BUDDY.equals(log.getName()) && log.getStatus() == ExpeditionLog.Status.IN_PROGRESS
+                && log.getMobs().size() == 1, buddyLogAtStart);
+    }
+
+    /**
+     * The Expedition Log after a retreat. Its own (wounded): the fights won stay, the loot goes, the trip
+     * is over. A crew mate's (wounded-gate): exactly as the crew mate left it - not rewritten, not wiped.
+     */
+    private void checkLogAfterRetreat() {
+        final ExpeditionLog log = expeditionLog();
+        final String now = describeLog(log);
+        if (gate()) {
+            checkEq("crew mate's expedition log untouched by the retreat", now, buddyLogAtStart);
+            return;
+        }
+        check("own expedition log after the retreat", citizen.getName().equals(log.getName())
+                        && log.getStatus() == ExpeditionLog.Status.COMPLETED && log.getLoot().isEmpty() && logMobs(log).equals(tally()),
+                now + " (tally " + tally() + ")");
+    }
+
+    /**
+     * The job's landed mark went up: the Voyager stepped out of the landing or the gate. It is saved with
+     * the job and comes up once per trip. At an End Gate this is the landing: the wounded-gate mode reads
+     * the health here, as the wounded mode does when the rocket stands on the pad again.
+     */
+    private void onSteppedOut(final Optional<AbstractEntityCitizen> entity) {
+        steppedOut++;
+        steppedOutTick = tick;
+        say("stepped out of the " + lookName() + " at t=" + tick + " (landed mark, " + steppedOut + " time(s))"
+                + (entity.isPresent() ? ", " + entity.get().getHealth() + "/" + entity.get().getMaxHealth() + " hp" : ""));
+        jobRoundTrip("landed");
+        if (!gate()) {
+            return;
+        }
+        if (entity.isEmpty()) {
+            check("gate arrival: wounded", false, "no entity at the arrival");
+            return;
+        }
+        // as at the landing: the mod steps the Voyager out at the wounded value, the probe only reads it,
+        // the same tick or the next (at most one natural healing step on top)
+        final float h = entity.get().getHealth();
+        final float wounded = ExpeditionRules.woundedHealth(entity.get().getMaxHealth());
+        healthAtLanding = h;
+        landedLow = h < HURT_MARK;
+        check("gate arrival: wounded", h >= wounded - 0.01f && h <= wounded + 1.01f && !entity.get().isInvisible(),
+                h + " of " + entity.get().getMaxHealth() + " hp at t=" + tick + ", the wounded value is " + wounded
+                        + ", " + (entity.get().isInvisible() ? "invisible" : "visible"));
+        expect("gate arrival: wounded line", STEPS_OUT, 0, m -> check("gate arrival: wounded line",
+                Math.abs(Float.parseFloat(m.group(1)) - wounded) < 0.01f, m.group() + " (the wounded value is " + wounded + ")"));
     }
 
     private void onDrivenBack(final Optional<AbstractEntityCitizen> entity) {
         drivenBackTick = tick;
         say("driven back at t=" + tick + (entity.isPresent() ? ", " + entity.get().getHealth() + "/" + entity.get().getMaxHealth() + " hp" : ""));
-        if (mode != Mode.WOUNDED) {
-            check("driven back", false, "only the wounded mode turns permanent death off");
+        if (!wounded()) {
+            check("driven back", false, "only the wounded modes turn permanent death off");
             return;
         }
         jobRoundTrip("driven back");
+        checkLogAfterRetreat();
         if (entity.isPresent()) {
             final float wounded = ExpeditionRules.woundedHealth(entity.get().getMaxHealth());
             check("driven back: wounded", Math.abs(entity.get().getHealth() - wounded) < 0.01f,
@@ -1259,14 +1487,16 @@ public class Expedition {
         final double dist = entity.isPresent() ? Math.sqrt(entity.get().blockPosition().distSqr(building.getPosition())) : -1;
         check("home: back visible by the hut", entity.isPresent() && !entity.get().isInvisible() && dist <= 16.0,
                 entity.isEmpty() ? "no entity" : (entity.get().isInvisible() ? "invisible" : "visible") + ", " + (int) dist + " blocks from the hut at t=" + tick);
-        checkEq("home: trips completed", stat(BuildingVoyager.STAT_TRIPS_COMPLETED), mode == Mode.WOUNDED ? 0 : 1);
+        checkEq("home: trips completed", stat(BuildingVoyager.STAT_TRIPS_COMPLETED), wounded() ? 0 : 1);
+        // the walk is over: the next trip must not start out "landed"
+        check("home: landed mark cleared", !job.isLanded(), "landed " + job.isLanded() + ", stepped out " + steppedOut + " time(s)");
     }
 
     private void onDeath() {
         dead = true;
         deathTick = tick;
         say("the Voyager is no longer a citizen of the colony at t=" + tick);
-        if (mode == Mode.LOOP || mode == Mode.WOUNDED) {
+        if (mode == Mode.LOOP || wounded()) {
             check("survived", false, "the Voyager died in mode " + modeWord);
         }
     }
@@ -1343,7 +1573,7 @@ public class Expedition {
             case LOOP -> verifyLoop();
             case DRAGON -> verifyDragon();
             case LOST -> verifyLost();
-            case WOUNDED -> verifyWounded();
+            case WOUNDED, WOUNDED_GATE -> verifyWounded();
         }
         if (!pending.isEmpty()) {
             for (final Pending p : pending) {
@@ -1357,6 +1587,7 @@ public class Expedition {
         check("away: no entity while travelling", travelStarted && !sawEntityWhileTravelling, "travelling seen " + travelStarted);
         check("away: back in the world out of sight", sawInvisibleAway, "present and invisible while away after the travel");
         check("rocket lifted off and landed", liftedOff && landed && landingTick > liftOffTick, "lift-off t=" + liftOffTick + ", landing t=" + landingTick);
+        check("stepped out once (the landed mark)", steppedOut == 1 && steppedOutTick >= landingTick, steppedOut + " time(s), at t=" + steppedOutTick);
     }
 
     private void verifyUnloaded() {
@@ -1455,7 +1686,7 @@ public class Expedition {
     /** The Expedition Log lists exactly the trophies that came home. */
     private void expeditionLogTrophies(final int souvenirs, final int books, final int maps) {
         int s = 0, b = 0, m = 0;
-        for (final ItemStorage loot : building.getFirstModuleOccurance(ExpeditionLogModule.class).getLog().getLoot()) {
+        for (final ItemStorage loot : expeditionLog().getLoot()) {
             final ItemStack stack = loot.getItemStack();
             if (stack.is(Voyager.SOUVENIR_ITEM.get())) {
                 s += loot.getAmount();
@@ -1472,8 +1703,8 @@ public class Expedition {
     private void verifyRationsEaten() {
         final int firstAte = logs.indexOf("ration(s) and patched up", 0);
         int firstFight = Integer.MAX_VALUE;
-        for (final String needle : new String[] {"beat a ", "turns back from a ", "was driven back by a ", "was lost in the End"}) {
-            final int at = logs.indexOf(needle, 0);
+        for (final Pattern fight : new Pattern[] {BEAT, TURNS_BACK, DRIVEN_BACK, LOST_IN_END}) {
+            final int at = logs.indexOf(fight, 0);
             if (at >= 0) {
                 firstFight = Math.min(firstFight, at);
             }
@@ -1486,7 +1717,7 @@ public class Expedition {
         verifyRationsEaten();
         check("dragon line", logs.any("has the dragon on the itinerary"), "has the dragon on the itinerary");
         check("dragon fight line", logs.any("faces the dragon!"), "faces the dragon!");
-        final boolean won = logs.any("beat a " + DRAGON + " in");
+        final boolean won = logs.any("beat " + named(EntityType.ENDER_DRAGON) + " in ");
         if (dead || !won) {
             say("dragon branch: lost (dead " + dead + ", won line " + won + ")");
             check("dragon branch", dead, dead ? "lost" : "neither a win nor a loss");
@@ -1525,7 +1756,8 @@ public class Expedition {
     /** A Voyager lost in the End: Return to Sender, a grave, the rocket alone, nothing left on the job. */
     private void verifyLostChecks() {
         final Matcher lost = logs.find(LOST_IN_END, 0);
-        check("lost line", lost != null && dead, lost == null ? "no 'was lost in the End' line" : lost.group());
+        check("lost line", lost != null && dead && endMobNames().contains(lost.group(1)),
+                lost == null ? "no 'was lost in the End' line" : lost.group() + " (a mob by its name: " + endMobNames().contains(lost.group(1)) + ")");
         checkEq("stats deaths/retreats/trips", stat("voyager_deaths") + "/" + stat("voyager_retreats") + "/" + stat(BuildingVoyager.STAT_TRIPS_COMPLETED), "1/0/0");
         final Map<String, Integer> hut = counts(hutStacks());
         final Map<String, Integer> pack = counts(packStacks());
@@ -1604,7 +1836,8 @@ public class Expedition {
 
     private void verifyWounded() {
         final Matcher driven = logs.find(DRIVEN_BACK, 0);
-        check("driven back line", driven != null, driven == null ? "none" : driven.group());
+        check("driven back line", driven != null && endMobNames().contains(driven.group(1)),
+                driven == null ? "none" : driven.group() + " (a mob by its name, from " + endMobNames() + ")");
         // after the respawn the new entity is set back to the wounded value (the line names its health)
         final Matcher rewound = logs.find(REWOUNDED, 0);
         final int woundedHp = (int) ExpeditionRules.woundedHealth(maxHealthAtHome > 0.0f ? maxHealthAtHome : 20.0f);
@@ -1637,19 +1870,28 @@ public class Expedition {
         final long trophies = hutAndPack().stream().filter(this::isTrophy).count();
         checkEq("no trophies for a retreat", trophies, 0L);
         expeditionLogTrophies(0, 0, 0);
-        check("rocket back", landed && !building.isRocketAway(), "landing t=" + landingTick);
-        final int landings = logs.count("rocket coming in to land at");
-        check("one landing, home on foot below the hurt mark", landedLow && home && landings == 1,
-                "landed at " + healthAtLanding + " hp (below " + HURT_MARK + ": " + landedLow + "), home " + home + ", " + landings + " landing(s)");
+        if (gate()) {
+            final int arrivals = logs.count(GATE_ARRIVAL);
+            checkEq("no rocket at a gate", logs.count("rocket coming in to land at") + "/" + liftedOff + "/" + landed, "0/false/false");
+            check("one gate arrival, home on foot below the hurt mark", landedLow && home && arrivals == 1 && steppedOut == 1,
+                    "stepped out at " + healthAtLanding + " hp (below " + HURT_MARK + ": " + landedLow + "), home " + home + ", " + arrivals
+                            + " gate arrival(s), landed mark " + steppedOut + " time(s)");
+        } else {
+            check("rocket back", landed && !building.isRocketAway(), "landing t=" + landingTick);
+            final int landings = logs.count("rocket coming in to land at");
+            check("one landing, home on foot below the hurt mark", landedLow && home && landings == 1 && steppedOut == 1,
+                    "landed at " + healthAtLanding + " hp (below " + HURT_MARK + ": " + landedLow + "), home " + home + ", " + landings
+                            + " landing(s), landed mark " + steppedOut + " time(s)");
+        }
         // a retreat finishes no expedition, and the AI restarted on the way home must not announce one
         checkEq("no 'finished the expedition' line for a retreat", logs.count(FINISHED), 0);
         check("still the Voyager", building.getAllAssignedCitizen().contains(citizen) && citizen.getJob() == job, "");
         final Matcher turn = logs.find(TURNS_BACK, 0);
         if (turn != null) {
-            say("retreat report: turned back from a " + turn.group(1) + " at " + turn.group(2) + " of " + turn.group(3) + " hp after "
+            say("retreat report: turned back from " + turn.group(1) + " at " + turn.group(2) + " of " + turn.group(3) + " hp after "
                     + turn.group(4) + " blows; the worst-blow estimate was " + turn.group(5) + " hp (MineColonies caps one blow at "
                     + (Float.parseFloat(turn.group(3)) / 5.0f) + " hp before armour)");
         }
-        check("retreat line", turn != null, turn == null ? "no 'turns back from' line" : turn.group());
+        check("retreat line", turn != null && endMobNames().contains(turn.group(1)), turn == null ? "no 'turns back from' line" : turn.group());
     }
 }

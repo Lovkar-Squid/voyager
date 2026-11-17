@@ -3,6 +3,7 @@ package me.lovkar.voyagertrophycheck;
 import io.netty.buffer.Unpooled;
 import me.lovkar.voyager.Voyager;
 import me.lovkar.voyager.VoyagerConfig;
+import me.lovkar.voyager.ai.EntityAIWorkVoyager;
 import me.lovkar.voyager.block.SouvenirBlockEntity;
 import me.lovkar.voyager.trophy.EndPlace;
 import me.lovkar.voyager.trophy.TripStory;
@@ -66,7 +67,8 @@ import java.util.Set;
  * pool (never Mending, only listed enchantments, unknown ids left out), the map of the End (the
  * story, and no vanilla map), the story through NBT save and parse and through the network codec,
  * the job's trip tally through NBT, and a souvenir placed in the world, saved, broken and knocked off
- * its support - the drop must carry the same story every time.
+ * its support - the drop must carry the same story every time. Also the Long-range Comms lines that
+ * name a mob: by its translated name, as the AI hands it over, with no article in front.
  *
  * <p>The expected English is written out here by hand from the approved names, so a wrong lang
  * value or a wrong place cannot agree with itself. The rig seeds no config: the mod's defaults are
@@ -386,6 +388,17 @@ public class TrophyCheck {
         checkEq("comms, all three", Component.translatable(Trophies.KEY_COMMS, VOYAGER, Trophies.join(List.of(
                 Trophies.describe(souvenir), Trophies.describe(book), Trophies.describe(map)))).getString(),
                 VOYAGER + " brought home a Shard from the Hollow Spires, an enchanted book (Sharpness III) and a map of the End");
+        // a mob in a comms line: the AI hands over its translated name (MineColonies' MessageUtils.format
+        // builds the line with translatableEscape, which keeps a Component as it is)
+        checkEq("comms, driven back by the dragon", Component.translatableEscape("com.voyager.comms.driven_back", VOYAGER,
+                EntityAIWorkVoyager.mobName(EntityType.ENDER_DRAGON)).getString(),
+                VOYAGER + " was driven back by Ender Dragon and is coming home wounded, empty-handed");
+        checkEq("comms, a fight won", Component.translatableEscape("com.voyager.comms.fight", VOYAGER,
+                EntityAIWorkVoyager.mobName(EntityType.ENDERMAN), 14, 20).getString(),
+                VOYAGER + " beat Enderman out there (14/20 hp left)");
+        checkEq("comms, lost", Component.translatableEscape("com.voyager.comms.lost", VOYAGER,
+                EntityAIWorkVoyager.mobName(EntityType.SHULKER)).getString(),
+                VOYAGER + " was lost in the End fighting Shulker");
     }
 
     // ---------------------------------------------------------------- in the world

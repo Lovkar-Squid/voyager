@@ -93,6 +93,16 @@ final class LogTail {
         return -1;
     }
 
+    /** Index of the first line at or after {@code from} that the pattern finds something in, or -1. */
+    int indexOf(final Pattern pattern, final int from) {
+        for (int i = Math.max(0, from); i < lines.size(); i++) {
+            if (pattern.matcher(lines.get(i)).find()) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     boolean any(final String needle) {
         return indexOf(needle, 0) >= 0;
     }
