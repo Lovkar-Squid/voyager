@@ -9,8 +9,8 @@
     tells who brought it home, which expedition of the Departure Point it was (Launchpad or End
     Gate, colony day) and what happened ("Fought 2 endermen and a shulker", "A quiet crossing").
   - A souvenir can be placed on a shelf, a table or any block with a firm top: a keepsake on a
-    little purpur stand, facing the player. Broken, pushed or knocked off, it drops as the same
-    souvenir with the same story and name; an anvil can rename it.
+    little purpur stand. Broken, pushed or knocked off, it drops as the same souvenir with the same
+    story and name; an anvil can rename it.
   - The **Dragon's Wake** ("Scale from the Dragon's Wake") only and always after the Voyager beat
     the dragon on that trip.
   - From a level 5 Departure Point: an **End-city enchanted book** (5 %; one enchantment from the
@@ -34,15 +34,39 @@
     datapack recipes `trip1..5.json`, so a datapack can still replace it.
   - The trip length multiplier scales the whole crossing; Rapid Refit and Star Charts still shorten it.
 - **Permanent death can be turned off.** With `permanentDeath = false` the blow that would have
-  killed a Voyager is never dealt: they are driven back, come home through the normal landing with a
-  quarter of their health and their gear, but empty-handed - the rest of the itinerary and the
-  trip's finds are lost, the supplies are spent. No grave, no death on the record (a "driven back"
-  count instead), and Return to Sender has nothing to do. With Long-range Comms the colony hears
-  about it. A reload on the way home keeps the wound.
+  killed a Voyager is never dealt: they are driven back with a quarter of their health and come home
+  through the normal landing with their gear, but empty-handed - the rest of the itinerary and the
+  trip's finds are lost, the supplies are spent. They step out of the rocket (or the gate) with that
+  quarter, whatever they healed out of sight; on the walk to the hut they heal as any hurt colonist
+  does. No grave, no death on the record (a "driven back" count instead), and Return to Sender has
+  nothing to do. With Long-range Comms the colony hears about it. A reload on the way home keeps the
+  wound.
+  The log says at how much health the Voyager turned back and how hard the next blow was feared to be.
 - **The Observatory says what it needs.** Without Exposure: Space its hut item has a tooltip line:
   the night sky needs Exposure: Space, and without it every plate comes home blank. The building
   itself stays exactly as it was - buildable, with or without the mod.
 - **README:** the header no longer says BETA 0.2.0, and there is a section on the server config.
+- **Fixed, found by playing expeditions on a dedicated server:**
+  - **Rations are eaten.** Since 0.2.0 a Voyager could eat any food except the rations on the hut's
+    menu - which is all they pack - so between fights they patched up with nothing and went into the
+    next fight as hurt as they were. They now eat the menu's food (any food when the menu is empty).
+    Voyagers win more fights than before.
+  - A blow the game refuses to deal is worked out by Voyager itself: MineColonies' helper for it
+    broke off the fight with an error as soon as the Voyager wore protection-enchanted armour. If
+    such a blow is fatal all the same, the Voyager now dies the normal way; before, they were left at
+    0 hp and their colonist could come back later as if nothing had happened.
+  - The Expedition Log, the log line and the Long-range Comms line name only the trophies that were
+    really packed; one that found no room in a full pack stays in the End and is no longer listed.
+  - An empty loot roll (an enderman's pearl rolled as zero) is no longer carried or put in the
+    Expedition Log; the new "no room in the pack" warning fired for it ("0x Air").
+  - A Voyager lost in the End leaves no trip in progress behind on the job. With no room for a
+    grave, what they still wore is dropped by the hut along with the pack, and the warning counts it.
+  - A Voyager back on the Launchpad walks on to the hut when their AI restarts on the way - after a
+    reload, or when MineColonies' care for a colonist below 6 hp takes them over, as it does a
+    driven-back Voyager. Before, the restarted AI found them still away, hid them in the End again and
+    brought the rocket in to land a second time. A meal or leisure no longer interrupts that walk.
+  - "Finished the expedition and is heading home" is logged once per trip: an AI restarted on the way
+    home logged it again, and a driven-back Voyager, who finished nothing, got it too.
 - **Tested on a dedicated server.** A headless NeoForge 21.1.249 server with MineColonies 1.1.1420
   boots Voyager and reads its config: once seeded with a non-default value for every key, once from
   the mod's own defaults (`tools/configcheck`). The trophies are checked there too
@@ -50,6 +74,30 @@
   rule, 4,000 End-city books without a single Mending, the story through saving, loading and the
   network, and a souvenir placed, saved, broken and knocked off its shelf, keeping its story every
   time. `tools/check_trophies.py` checks the textures, models, loot table and lang keys.
+  - **A play-test with a real colony** (`tools/expedition`): a colony on the flat world, a level-5
+    Launchpad pasted from the bundled pack, a hired Voyager, the plan's supplies and rations in the
+    hut, and then the AI runs for real. The research is injected as effects (the University is not
+    part of the test), trips are short (trip length 0.25) and every trophy chance is 1.0.
+  - `loop`: the Voyager boards, departs, the rocket (1,375 blocks) is stowed at lift-off and stands
+    on the pad again after the landing as it left, the Voyager is away out of sight for the computed
+    time (the departure line gives Rapid Refit's shorter time to the second), comes back, carries the
+    haul into the hut and the trip is counted. The souvenir, the End-city book (not Mending) and the
+    map of the End arrive in the hut with their story (name, expedition 1, Launchpad, the fights of
+    the trip). The job and the building keep the trip, its tally and the expedition number through
+    saving and loading, and the rocket's stash survives a reload while it is away. (The test colony
+    has no restaurant, so the probe feeds the Voyager once home.)
+  - `dragon`: Dragon Hunt with the dragon certain. The Voyager (netherite, Protection IV, Void
+    Insurance) ate a ration, beat her and brought home a dragon head, dragon's breath and a *Scale
+    from the Dragon's Wake*. The win branch ran; a lost dragon fight is the lost path below.
+  - `lost`: a Voyager without sword, armour or rations was lost in the End: Return to Sender put the
+    pack into the hut's racks, a grave was raised by the hut, the rocket came home on its own, no
+    trophies. (MineColonies takes the job off a colonist who dies, so the grave keeps no trip.)
+  - `wounded`: a deadly trip (no rations, half health, the dragon at the end) with permanent death
+    off: the Voyager turned back from a fight (a shulker in one run, the dragon in another) and was
+    left with a quarter of their health, was taken out of the world on the way home and came back
+    still wounded, landed once and stepped out at that quarter (below MineColonies' 6 hp mark,
+    whatever they had healed meanwhile), then walked home with all their gear, empty-handed: no
+    grave, no death on the record, a retreat counted.
 
 ## 0.3.9 - 2026-10-06 - the photographer walks round town
 

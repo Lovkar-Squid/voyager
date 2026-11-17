@@ -1,0 +1,17 @@
+# Seeded by run-rigtest.ps1 -Name expedition -Mode loop: one short Launchpad trip that is sure to bring
+# all three trophies home (every reward chance 1.0), no dragon, a Voyager who can be lost (the default).
+# Every key is set, so a value that silently fell back to the mod's default shows in the probe's config check.
+
+[expeditions]
+	tripsPerLaunchWindow = 2
+	rationsPerVoyager = 4
+	supplyMultiplier = 1.0
+	tripLengthMultiplier = 0.25
+	dragonChance = 0.0
+	permanentDeath = true
+
+[rewards]
+	souvenirChance = 1.0
+	endCityBookChance = 1.0
+	endMapChance = 1.0
+	bookEnchantments = ["minecraft:protection", "minecraft:fire_protection", "minecraft:blast_protection", "minecraft:projectile_protection", "minecraft:feather_falling", "minecraft:respiration", "minecraft:depth_strider", "minecraft:unbreaking", "minecraft:efficiency", "minecraft:fortune", "minecraft:silk_touch", "minecraft:sharpness", "minecraft:smite", "minecraft:looting", "minecraft:power", "minecraft:punch"]
