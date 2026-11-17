@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 (unreleased)
+## 0.4.0 - 2026-11-17 - trophies from the End
 
 - **Trophies from the End.** A completed expedition may bring home something to remember it by,
   on top of the haul (the existing loot tables are untouched):
