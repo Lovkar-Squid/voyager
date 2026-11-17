@@ -32,6 +32,8 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
     private static final String TAG_EXPEDITION = "expedition";
     private static final String TAG_TALLY = "trip_fights";
     private static final String TAG_TROPHIES_ROLLED = "trophies_rolled";
+    private static final String TAG_HOMEWARD = "homeward";
+    private static final String TAG_LANDED = "landed";
 
     private boolean away = false;
     /**
@@ -44,11 +46,20 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
     /** Transient: the Voyager gave up walking to the departure point (shown as an interaction). */
     private boolean departureBlocked = false;
     /**
-     * Transient: this trip has turned for home (finished, or driven back). Lives on the job, not the
-     * AI, because the AI is made anew when it restarts on the way home; it only keeps the
-     * "finished the expedition" log line to one per trip.
+     * This trip has turned for home (finished, or driven back). Lives on the job, not the AI, because
+     * the AI is made anew when it restarts on the way home; it keeps the "finished the expedition" log
+     * line to one per trip. Saved, so a reload on the way home does not announce the trip again (an
+     * older save has no key and reads as false: at worst the line comes once more).
      */
     private boolean homeward = false;
+    /**
+     * The Voyager has stepped out of the landing (or the gate) on this trip, and only the walk to the hut
+     * is left. Set when they appear, cleared when they reach the hut and when a new trip starts. Saved:
+     * an End Gate has nothing else to show for it (a Launchpad has its rocket back on the pad), and an AI
+     * restarted on that walk - MineColonies' care for a hurt colonist below 6 hp does it to every
+     * driven-back Voyager, a reload does it to anyone - must walk on, not go through the arrival again.
+     */
+    private boolean landed = false;
     private final Queue<ItemStack> finds = new LinkedList<>();
     /** A list, not just a queue: the trophies go in at the front, so they are packed first. */
     private final LinkedList<ItemStack> haul = new LinkedList<>();
@@ -172,6 +183,14 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         this.homeward = homeward;
     }
 
+    public boolean isLanded() {
+        return landed;
+    }
+
+    public void setLanded(final boolean landed) {
+        this.landed = landed;
+    }
+
     public Queue<ItemStack> getFinds() {
         return finds;
     }
@@ -193,12 +212,13 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         haul.addAll(0, stacks);
     }
 
-    /** A new expedition sets off: its number, nothing happened yet, no trophies yet, not homeward yet. */
+    /** A new expedition sets off: its number, nothing happened yet, no trophies yet, not homeward or landed yet. */
     public void startTrip(final int expedition) {
         this.expedition = expedition;
         tally.clear();
         trophiesRolled = false;
         homeward = false;
+        landed = false;
     }
 
     public int getExpedition() {
@@ -231,6 +251,8 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         compound.putInt(TAG_EXPEDITION, expedition);
         compound.put(TAG_TALLY, tally.save());
         compound.putBoolean(TAG_TROPHIES_ROLLED, trophiesRolled);
+        compound.putBoolean(TAG_HOMEWARD, homeward);
+        compound.putBoolean(TAG_LANDED, landed);
         return compound;
     }
 
@@ -243,7 +265,21 @@ public class JobVoyager extends AbstractJobCrafter<EntityAIWorkVoyager, JobVoyag
         readStacks(compound.getList(TAG_HAUL, Tag.TAG_COMPOUND), haul, provider);
         expedition = compound.getInt(TAG_EXPEDITION);
         tally.load(compound.getList(TAG_TALLY, TripTally.listType()));
-        trophiesRolled = compound.getBoolean(TAG_TROPHIES_ROLLED);
+        trophiesRolled = compound.getBoolean(TAG_TROPHIES_ROLLED)
+                || pastTheFightsBeforeTallies(compound.contains(TAG_TALLY, Tag.TAG_LIST), away, finds.size());
+        homeward = compound.getBoolean(TAG_HOMEWARD);
+        landed = compound.getBoolean(TAG_LANDED);
+    }
+
+    /**
+     * A trip saved by 0.3.9 (no tally in the save at all - a 0.4.0 save always writes one, empty or
+     * not) after its last find was lived through: the fights happened, but nobody counted them, and
+     * trophies rolled now would tell a false story ("A quiet crossing", never the Dragon's Wake). Such
+     * a trip comes home with its haul and no trophy, as it would have under 0.3.9. A 0.3.9 trip with
+     * finds still ahead keeps its roll: the fights still to come are counted.
+     */
+    public static boolean pastTheFightsBeforeTallies(final boolean hasTally, final boolean away, final int findsLeft) {
+        return !hasTally && away && findsLeft == 0;
     }
 
     private static ListTag writeStacks(final Queue<ItemStack> stacks, final HolderLookup.Provider provider) {
