@@ -224,7 +224,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             }
             if (stack.getItem() instanceof ItemAdventureToken) {
                 final AdventureData data = AdventureData.readFromItemStack(stack);
-                sb.append("fight vs ").append(data == null ? "?" : EntityType.getKey(data.entityType()).getPath());
+                sb.append("fight vs ").append(data == null ? "?" : mobName(data.entityType()).getString());
             } else {
                 sb.append(stack.getCount()).append("x ").append(stack.getHoverName().getString());
             }
@@ -232,12 +232,23 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         return sb.length() == 0 ? "nothing" : sb.toString();
     }
 
+    /**
+     * A mob as the colony reads about it: its translated name ("Ender Dragon"), not its registry id.
+     * The lines that name one take it without an article, the way vanilla's death messages name a
+     * killer ("was slain by Zombie"), so "a"/"an" never has to agree with the name - in English or in
+     * any other language. The log lines take its text on the server (English on a dedicated server).
+     */
+    public static Component mobName(final EntityType<?> type) {
+        return type.getDescription();
+    }
+
     // ------------------------------------------------------------------ deciding
 
     @Override
     protected IAIState decide() {
         if (landedAlready()) {
-            // the AI restarted on the walk home from the pad: walk on, do not vanish into the End again
+            // the AI restarted on the walk home from the landing or the gate: walk on, do not vanish
+            // into the End again
             return AIWorkerState.NETHER_RETURN;
         }
         if (colonyTravelling() || job.isAway()) {
@@ -344,17 +355,15 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
     }
 
     /**
-     * Still away on the job, but already back on the pad: the rocket stands there again, the Voyager is
-     * in sight and not travelling, and nothing of the trip is left but the walk to the hut (every find
-     * lived through, the haul packed, the trophies rolled). MineColonies' care for a hurt colonist
-     * (below 6 hp, as a driven-back Voyager lands) takes the citizen over whatever the job says, and a
-     * reload makes a new AI; either restarts this AI on that walk. The End Gate keeps no such mark, so
-     * there a restarted AI still goes through the arrival once more.
+     * Still away on the job, but already stepped out of the landing or the gate: nothing of the trip is
+     * left but the walk to the hut. MineColonies' care for a hurt colonist (below 6 hp, as a driven-back
+     * Voyager steps out) takes the citizen over whatever the job says, and a reload makes a new AI;
+     * either restarts this AI on that walk. The job's saved landed mark tells it so at both looks - an
+     * End Gate has nothing else to show for it, and a restarted AI that missed it went through the
+     * arrival again, was wounded again at the end of it, was taken over again, and never got home.
      */
     private boolean landedAlready() {
-        return job.isAway() && !colonyTravelling() && !building.isEndGate() && !building.isRocketAway()
-                && !worker.isInvisible() && !job.isCountingDown()
-                && job.getFinds().isEmpty() && job.getHaul().isEmpty() && job.isTrophiesRolled();
+        return job.isAway() && job.isLanded() && !colonyTravelling() && !job.isCountingDown();
     }
 
     private BuildingVoyager.CraftingModule craftingModule() {
@@ -363,6 +372,20 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
 
     private ExpeditionLog log() {
         return building.getFirstModuleOccurance(ExpeditionLogModule.class).getLog();
+    }
+
+    /**
+     * The building's Expedition Log while it is this Voyager's, otherwise a scratch log nobody reads.
+     * MineColonies keeps one log per building, and it belongs to whoever set off last (launch() takes
+     * it over). With Buddy System a crew mate who left after this Voyager holds it: this Voyager's
+     * fights, finds, trophies, death or retreat - which rewrites the log - must not end up in, or wipe,
+     * the crew mate's entry. The log knows its Voyager by name (the id it keeps is the entity's, which
+     * changes with every respawn); a log that names nobody is anybody's.
+     */
+    private ExpeditionLog myLog() {
+        final ExpeditionLog log = log();
+        final String owner = log.getName();
+        return owner == null || owner.equals(name()) ? log : new ExpeditionLog();
     }
 
     // ------------------------------------------------------------------ leaving
@@ -540,13 +563,17 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
      * into the backpack and the Voyager heads home.
      */
     private IAIState explore() {
+        if (job.isLanded()) {
+            // already stepped out of the landing or the gate on this trip: never back into the End
+            return AIWorkerState.NETHER_RETURN;
+        }
         if (!worker.isInvisible()) {
             // out in the End nobody sees them (a reload can bring them back visible)
             worker.setInvisible(true);
         }
         keepWound();
         job.setStatus(JobVoyager.Status.AWAY, "out in the End");
-        final ExpeditionLog log = log();
+        final ExpeditionLog log = myLog();
         if (!job.getFinds().isEmpty()) {
             Voyager.LOGGER.info("[Voyager] {} is out in the End: {} finds to live through", name(), job.getFinds().size());
             for (final ItemStack find : job.getFinds()) {
@@ -700,13 +727,14 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         final DamageSource source = new DamageSource(world.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(END_DAMAGE));
         final DamageSource swordSource = new DamageSource(world.registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(DamageSourceKeys.DEFAULT), worker);
         final EntityType<?> mobType = data.entityType();
-        final String mobName = EntityType.getKey(mobType).getPath();
+        final Component mob = mobName(mobType);
+        final String mobName = mob.getString();
         final Entity created = mobType.create(world);
-        if (!(created instanceof LivingEntity mob)) {
+        if (!(created instanceof LivingEntity opponent)) {
             return null;
         }
         final float healthBefore = worker.getHealth();
-        float mobHealth = mob.getHealth();
+        float mobHealth = opponent.getHealth();
         float incoming = data.damage();
         incoming -= incoming * (getSecondarySkillLevel() * SECONDARY_DAMAGE_REDUCTION);
         // Void Insurance pays part of every blow
@@ -734,7 +762,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 } else {
                     damage += (float) TinkersToolHelper.getDamage(sword);
                 }
-                damage += EnchantmentHelper.modifyDamage((ServerLevel) worker.level(), sword, mob, swordSource, 1.0f) / 2.5f;
+                damage += EnchantmentHelper.modifyDamage((ServerLevel) worker.level(), sword, opponent, swordSource, 1.0f) / 2.5f;
                 if (lands) {
                     sword.hurtAndBreak(1, (ServerLevel) worker.level(), worker,
                             item -> worker.setItemSlot(EquipmentSlot.MAINHAND, findTool(ModEquipmentTypes.sword.get())));
@@ -781,13 +809,13 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         logAllEquipment(log, true);
         if (drivenBack) {
             // the numbers behind the retreat: how much health was left, and what the estimate feared
-            Voyager.LOGGER.info("[Voyager] {} turns back from a {} at {} of {} hp after {} blows: the next blow could take {} hp",
+            Voyager.LOGGER.info("[Voyager] {} turns back from {} at {} of {} hp after {} blows: the next blow could take {} hp",
                     name(), mobName, oneDecimal(worker.getHealth()), oneDecimal(worker.getMaxHealth()), hit, oneDecimal(turnedFrom));
-            return driveBack(mobName, log);
+            return driveBack(mob, log);
         }
         if (worker.isDeadOrDying()) {
-            Voyager.LOGGER.warn("[Voyager] {} was lost in the End fighting a {} (after {} blows)", name(), mobName, hit);
-            comms("com.voyager.comms.lost", name(), mobName);
+            Voyager.LOGGER.warn("[Voyager] {} was lost in the End fighting {} (after {} blows)", name(), mobName, hit);
+            comms("com.voyager.comms.lost", name(), mob);
             log.setKilled();
             StatsUtil.trackStat(building, STAT_DEATHS, 1);
             // the trip ends here, before the grave is raised: MineColonies has already taken the job off
@@ -806,16 +834,16 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
             InventoryUtils.clearItemHandler(worker.getItemHandlerCitizen());
             return AIWorkerState.IDLE;
         }
-        final LootTable loot = world.getServer().reloadableRegistries().getLootTable(mob.getLootTable());
+        final LootTable loot = world.getServer().reloadableRegistries().getLootTable(opponent.getLootTable());
         final List<ItemStack> drops = carried(loot.getRandomItems(getLootContext()));
         drops.addAll(bonusDrops(mobType));
         job.addHaul(drops);
         job.getTally().recordWin(EntityType.getKey(mobType));
         log.addMob(mobType);
         log.addLoot(drops);
-        Voyager.LOGGER.info("[Voyager] {} beat a {} in {} blows ({} -> {} hp), drops: {}", name(), mobName, hit,
+        Voyager.LOGGER.info("[Voyager] {} beat {} in {} blows ({} -> {} hp), drops: {}", name(), mobName, hit,
                 (int) healthBefore, (int) worker.getHealth(), describe(drops));
-        comms("com.voyager.comms.fight", name(), mobName, (int) worker.getHealth(), (int) worker.getMaxHealth());
+        comms("com.voyager.comms.fight", name(), mob, (int) worker.getHealth(), (int) worker.getMaxHealth());
         worker.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
         equipArmor(false);
         worker.getCitizenExperienceHandler().addExperience(CitizenItemUtils.applyMending(worker, data.xp()));
@@ -876,14 +904,16 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
     /**
      * Permanent death is off and the next blow would have killed: the Voyager is driven back. Left
      * with a quarter of their health, they give up the rest of the itinerary and everything gathered
-     * on this trip (the supplies are spent all the same) and come home through the normal landing,
-     * gear and remaining rations still in the pack. No grave, no death on the record, no Return to
-     * Sender, and the Expedition Log is not marked killed - nobody was lost. The wound is applied to
-     * the live entity, after the travel respawn, like every blow of a fight; the job remembers the
-     * retreat so a respawn on the way home cannot heal it (see keepWound), and they step out of the
-     * landing at that value (see woundAtTheReturn).
+     * on this trip and come home through the normal landing, gear and remaining rations still in the
+     * pack. What the launch used up stays used up (the cobblestone and the torches); the plan's ender
+     * pearls never were - MineColonies hands back an input the trip can also turn up, as it does a
+     * tool - so they come home in the pack, as after every trip. No grave, no death on the record, no
+     * Return to Sender, and the Expedition Log is not marked killed - nobody was lost. The wound is
+     * applied to the live entity, after the travel respawn, like every blow of a fight; the job
+     * remembers the retreat so a respawn on the way home cannot heal it (see keepWound), and they step
+     * out of the landing at that value (see woundAtTheReturn).
      */
-    private IAIState driveBack(final String mobName, final ExpeditionLog log) {
+    private IAIState driveBack(final Component mob, final ExpeditionLog log) {
         worker.setHealth(ExpeditionRules.woundedHealth(worker.getMaxHealth()));
         woundSeenOn = worker.getId();
         worker.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
@@ -898,12 +928,16 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         forgetLoot(log);
         log.setStatus(ExpeditionLog.Status.COMPLETED);
         StatsUtil.trackStat(building, STAT_RETREATS, 1);
-        Voyager.LOGGER.info("[Voyager] {} was driven back by a {} and comes home wounded, empty-handed", name(), mobName);
-        comms("com.voyager.comms.driven_back", name(), mobName);
+        Voyager.LOGGER.info("[Voyager] {} was driven back by {} and comes home wounded, empty-handed", name(), mob.getString());
+        comms("com.voyager.comms.driven_back", name(), mob);
         return AIWorkerState.NETHER_RETURN;
     }
 
-    /** The log keeps the fights won and the gear, but no loot: none of it is coming home. */
+    /**
+     * The log keeps the fights won and the gear, but no loot: none of it is coming home. Only ever handed
+     * this Voyager's own log (see myLog): with Buddy System the building's log may be a crew mate's, who
+     * is still out there, and this reset would wipe their entry.
+     */
     private void forgetLoot(final ExpeditionLog log) {
         final List<Tuple<EntityType<?>, Integer>> mobs = log.getMobs();
         final List<ItemStack> equipment = log.getEquipment();
@@ -922,10 +956,12 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
      * citizen whose entity is respawned (by the travelling manager, or by MineColonies after a reload
      * that lost it) comes back at full health: once per entity, a full-health driven-back Voyager is
      * wounded again. What they heal out of sight in the meantime is taken back at the landing (see
-     * woundAtTheReturn).
+     * woundAtTheReturn). Once they have stepped out, the wound has been dealt for good: from there they
+     * heal like any hurt colonist, and an AI restarted on the walk home (a new AI knows no entity) must
+     * not wound them a second time.
      */
     private void keepWound() {
-        if (!job.isDrivenBack() || worker.getId() == woundSeenOn) {
+        if (!job.isDrivenBack() || job.isLanded() || worker.getId() == woundSeenOn) {
             return;
         }
         woundSeenOn = worker.getId();
@@ -1136,6 +1172,8 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
                 }
                 TeleportHelper.teleportCitizen(worker, world, departure);
                 worker.setInvisible(false);
+                // from here on only the walk to the hut is left, whatever restarts the AI on the way
+                job.setLanded(true);
                 Voyager.LOGGER.info("[Voyager] {} is back at the {} ({})", name(), lookName(), departure);
                 if (job.isDrivenBack()) {
                     woundAtTheReturn();
@@ -1162,6 +1200,7 @@ public class EntityAIWorkVoyager extends AbstractEntityAICrafting<JobVoyager, Bu
         }
         worker.getCitizenData().setJobStatus(JobStatus.STUCK);
         job.setAway(false);
+        job.setLanded(false);
         currentRecipeStorage = null;
         if (job.isDrivenBack()) {
             // a retreat is counted as one (voyager_retreats), not as a completed trip

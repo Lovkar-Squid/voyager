@@ -36,16 +36,22 @@
 - **Permanent death can be turned off.** With `permanentDeath = false` the blow that would have
   killed a Voyager is never dealt: they are driven back with a quarter of their health and come home
   through the normal landing with their gear, but empty-handed - the rest of the itinerary and the
-  trip's finds are lost, the supplies are spent. They step out of the rocket (or the gate) with that
-  quarter, whatever they healed out of sight; on the walk to the hut they heal as any hurt colonist
-  does. No grave, no death on the record (a "driven back" count instead), and Return to Sender has
-  nothing to do. With Long-range Comms the colony hears about it. A reload on the way home keeps the
-  wound.
+  trip's finds are lost, the cobblestone and torches the launch used up stay used up, and the plan's
+  ender pearls come home in the pack, as after every trip. They step out of the rocket (or the gate)
+  with that quarter, whatever they healed out of sight; on the walk to the hut they heal as any hurt
+  colonist does. No grave, no death on the record (a "driven back" count instead), and Return to
+  Sender has nothing to do. With Long-range Comms the colony hears about it. A reload on the way
+  home keeps the wound until they step out; from there on it heals like any colonist's.
   The log says at how much health the Voyager turned back and how hard the next blow was feared to be.
 - **The Observatory says what it needs.** Without Exposure: Space its hut item has a tooltip line:
   the night sky needs Exposure: Space, and without it every plate comes home blank. The building
   itself stays exactly as it was - buildable, with or without the mod.
 - **README:** the header no longer says BETA 0.2.0, and there is a section on the server config.
+  It now says what a trip does with its supplies: the 64 cobblestone and 16 torches are used up by
+  every launch; the 4 ender pearls only have to be in the Voyager's pack and come home again - after
+  a retreat too (MineColonies hands back a plan input that the trip can also turn up, as it does a
+  tool; unchanged since 0.2.0, the datapack recipes are as they were). It listed the pearls with
+  what every trip uses up, and said a retreat's supplies were spent.
 - **Fixed, found by playing expeditions on a dedicated server:**
   - **Rations are eaten.** Since 0.2.0 a Voyager could eat any food except the rations on the hut's
     menu - which is all they pack - so between fights they patched up with nothing and went into the
@@ -67,6 +73,27 @@
     brought the rocket in to land a second time. A meal or leisure no longer interrupts that walk.
   - "Finished the expedition and is heading home" is logged once per trip: an AI restarted on the way
     home logged it again, and a driven-back Voyager, who finished nothing, got it too.
+- **Fixed, found by a review of this release:**
+  - **A driven-back Voyager at an End Gate never got home.** They stepped out of the gate below
+    MineColonies' 6 hp mark, its care for a hurt colonist took them over and restarted their AI, and
+    the restarted AI - with no rocket on a pad to tell it the trip was over - sent them through the
+    gate's arrival again, wounded them again at the end of it, and so on for good. The job now
+    remembers that the Voyager has stepped out (saved with it), and a restarted AI walks on to the
+    hut at both looks. The wound of a retreat is dealt once: nothing wounds them again after the
+    landing.
+  - A trip saved by 0.3.9 after its fights (still away, nothing left on the itinerary) and loaded in
+    0.4.0 comes home with its haul and no trophy. Its fights were never counted, so a souvenir would
+    have told a false story ("A quiet crossing", never the Dragon's Wake). A 0.3.9 trip with finds
+    still ahead counts the fights it has left.
+  - The Long-range Comms lines and the log name a mob by its name, the way vanilla's death messages
+    do: "driven back by Ender Dragon", "beat Enderman out there", no longer "driven back by a
+    ender_dragon".
+  - A reload on the way home no longer logs "finished the expedition and is heading home" a second
+    time: the job saves that the trip has turned for home.
+  - Buddy System: the Departure Point has one Expedition Log, and it belongs to the Voyager who set
+    off last. A Voyager driven back while a crew mate who left after them was still out reset the
+    crew mate's entry; their fights, death or trophies could end up in it too. Now only the log's own
+    Voyager writes it.
 - **Tested on a dedicated server.** A headless NeoForge 21.1.249 server with MineColonies 1.1.1420
   boots Voyager and reads its config: once seeded with a non-default value for every key, once from
   the mod's own defaults (`tools/configcheck`). The trophies are checked there too
@@ -97,7 +124,18 @@
     left with a quarter of their health, was taken out of the world on the way home and came back
     still wounded, landed once and stepped out at that quarter (below MineColonies' 6 hp mark,
     whatever they had healed meanwhile), then walked home with all their gear, empty-handed: no
-    grave, no death on the record, a retreat counted.
+    grave, no death on the record, a retreat counted. Their own Expedition Log entry kept the fights
+    won and lost the loot.
+  - `wounded-gate`: the same retreat from a level-5 End Gate. The Voyager turned back from a fight
+    (the dragon in one run, an enderman in another), was taken out of the world on the way home and came back still wounded, appeared at the gate
+    exactly once, stepped out at a quarter of their health and walked home from below the 6 hp mark
+    with all their gear, empty-handed: no grave, no death, a retreat counted. While they were out the
+    probe handed the Expedition Log to a crew mate who "set off later"; the retreat left that entry
+    as it was.
+  - The modes in which the Voyager comes home also read the job's saves the way an older world would
+    have them: a 0.3.9 trip saved after its last find gets no trophy, one with finds ahead and a
+    0.4.0 save still roll theirs. `tools/trophycheck` renders the Long-range Comms lines that name a
+    mob.
 
 ## 0.3.9 - 2026-10-06 - the photographer walks round town
 

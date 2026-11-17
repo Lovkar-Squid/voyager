@@ -43,8 +43,9 @@ never grow past the outline you placed) and the pack works next to any colony st
 2. Build a Departure Point and hire a Voyager. Adaptability shapes what they find, Agility the
    odds of coming home unhurt.
 3. Stock the hut: a sword, a pickaxe, armor, rations (choose them in the Rations tab) and the
-   expedition supplies - 64 cobblestone, 4 ender pearls and 16 torches per trip (a server can
-   scale these, see [Server config](#server-config)).
+   expedition supplies - 64 cobblestone and 16 torches, used up by every trip, and 4 ender pearls,
+   which only have to be in the Voyager's pack: they travel along and come home again (a server
+   can scale these amounts, see [Server config](#server-config)).
 4. Wait for a launch window: every three days at level 1-2, every two days at level 3-4, daily at
    level 5.
 5. Read the **Expedition Log** in the hut to see what happened out there.
@@ -78,8 +79,9 @@ Point's console, so the Undertaker can bury - or resurrect - them like any other
 A server can turn that off (`permanentDeath = false`, see [Server config](#server-config)): then
 the blow that would have killed a Voyager is never dealt. They are driven back instead with a
 quarter of their health and come home through the normal landing, stepping out with that quarter
-(on the walk to the hut they heal like any hurt colonist), empty-handed (the supplies are spent, the
-finds are lost) but with all their gear - no grave, and nobody to mourn.
+(on the walk to the hut they heal like any hurt colonist), empty-handed (the cobblestone and torches
+are used up and the finds are lost; the ender pearls come home in the pack, as after every trip) but
+with all their gear - no grave, and nobody to mourn.
 
 ## Trophies from the End
 
