@@ -126,8 +126,8 @@
     whatever they had healed meanwhile), then walked home with all their gear, empty-handed: no
     grave, no death on the record, a retreat counted. Their own Expedition Log entry kept the fights
     won and lost the loot.
-  - `wounded-gate`: the same retreat from a level-5 End Gate. The Voyager turned back from the dragon,
-    was taken out of the world on the way home and came back still wounded, appeared at the gate
+  - `wounded-gate`: the same retreat from a level-5 End Gate. The Voyager turned back from a fight
+    (the dragon in one run, an enderman in another), was taken out of the world on the way home and came back still wounded, appeared at the gate
     exactly once, stepped out at a quarter of their health and walked home from below the 6 hp mark
     with all their gear, empty-handed: no grave, no death, a retreat counted. While they were out the
     probe handed the Expedition Log to a crew mate who "set off later"; the retreat left that entry
